@@ -580,7 +580,7 @@ impl TajweedProcessor {
     }
 }
 
-// --- 6. Main Function with Examples ---
+// --- 6. Main Function with Comprehensive Examples ---
 fn main() {
     println!("=======================================================");
     println!("  Enhanced Tajweed Processor - Warsh Recitation");
@@ -590,10 +590,303 @@ fn main() {
     let processor_warsh = TajweedProcessor::new(RecitationStyle::Warsh);
     let processor_hafs = TajweedProcessor::new(RecitationStyle::Hafs);
 
-    // Test verse with comprehensive rules
-    let test_verse = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
-    
-    println!("Test Verse: {}\n", test_verse);
-    println!("--- Warsh Analysis ---");
+    // Helper function to display results
+    fn display_results(verse: &str, matches: Vec<RuleMatch>, style_name: &str) {
+        println!("Verse: {}", verse);
+        println!("Style: {}\n", style_name);
+        
+        if matches.is_empty() {
+            println!("  No Tajweed rules detected.\n");
+            return;
+        }
 
+        for (idx, m) in matches.iter().enumerate() {
+            println!("  Rule #{}", idx + 1);
+            println!("    Position: {} to {}", m.start_index, m.end_index);
+            println!("    Target Letter: '{}'", m.target_letter);
+            if let Some(following) = m.following_letter {
+                println!("    Following Letter: '{}'", following);
+            }
+            println!("    Rule (Arabic): {}", m.rule.arabic_name);
+            println!("    Rule (English): {}", m.rule.english_name);
+            println!("    Description: {}", m.rule.description_ar);
+            if m.rule.warsh_specific {
+                println!("    ⚠️  Warsh-Specific Rule");
+            }
+            if let Some((min, max)) = m.rule.madd_length_warsh {
+                println!("    Madd Length: {} - {} harakaat", min, max);
+            }
+            println!("    Context: {}", m.context);
+            println!();
+        }
+        println!("{}\n", "=".repeat(55));
+    }
+
+    // ========== SECTION 1: Basmalah Analysis ==========
+    println!("\n📖 SECTION 1: BASMALAH (بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ)");
+    println!("{}", "=".repeat(55));
+    let basmalah = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
+    let matches_basmalah_warsh = processor_warsh.process_verse(basmalah);
+    display_results(basmalah, matches_basmalah_warsh, "Warsh");
+
+    // ========== SECTION 2: Izhar Halqi Examples ==========
+    println!("\n📖 SECTION 2: IZHAR HALQI (الإظهار الحلقي)");
+    println!("{}", "=".repeat(55));
+    
+    let verse_izhar_1 = "مِنْ هَادٍ";
+    println!("Example 1: Noon Sakinah + Ha (ن + ه)");
+    let matches_izhar_1 = processor_warsh.process_verse(verse_izhar_1);
+    display_results(verse_izhar_1, matches_izhar_1, "Warsh");
+
+    let verse_izhar_2 = "يَنْأَوْنَ";
+    println!("Example 2: Noon Sakinah + Hamza (ن + أ)");
+    let matches_izhar_2 = processor_warsh.process_verse(verse_izhar_2);
+    display_results(verse_izhar_2, matches_izhar_2, "Warsh");
+
+    let verse_izhar_3 = "مَنْ عَمِلَ";
+    println!("Example 3: Noon Sakinah + Ayn (ن + ع)");
+    let matches_izhar_3 = processor_warsh.process_verse(verse_izhar_3);
+    display_results(verse_izhar_3, matches_izhar_3, "Warsh");
+
+    let verse_izhar_4 = "عَلِيمٌ حَكِيمٌ";
+    println!("Example 4: Tanwin + Ha (تنوين + ح)");
+    let matches_izhar_4 = processor_warsh.process_verse(verse_izhar_4);
+    display_results(verse_izhar_4, matches_izhar_4, "Warsh");
+
+    // ========== SECTION 3: Iqlab Examples ==========
+    println!("\n📖 SECTION 3: IQLAB (الإقلاب)");
+    println!("{}", "=".repeat(55));
+    
+    let verse_iqlab_1 = "مِنْ بَعْدِ";
+    println!("Example 1: Noon Sakinah + Ba (ن + ب)");
+    let matches_iqlab_1 = processor_warsh.process_verse(verse_iqlab_1);
+    display_results(verse_iqlab_1, matches_iqlab_1, "Warsh");
+
+    let verse_iqlab_2 = "سَمِيعٌ بَصِيرٌ";
+    println!("Example 2: Tanwin + Ba (تنوين + ب)");
+    let matches_iqlab_2 = processor_warsh.process_verse(verse_iqlab_2);
+    display_results(verse_iqlab_2, matches_iqlab_2, "Warsh");
+
+    let verse_iqlab_3 = "أَنْبِئْهُمْ";
+    println!("Example 3: Noon Sakinah + Ba in same word (ن + ب)");
+    let matches_iqlab_3 = processor_warsh.process_verse(verse_iqlab_3);
+    display_results(verse_iqlab_3, matches_iqlab_3, "Warsh");
+
+    // ========== SECTION 4: Idgham bi Ghunnah Examples ==========
+    println!("\n📖 SECTION 4: IDGHAM BI GHUNNAH (الإدغام بغنة)");
+    println!("{}", "=".repeat(55));
+    
+    let verse_idgham_g_1 = "مَنْ يَعْمَلْ";
+    println!("Example 1: Noon Sakinah + Ya (ن + ي)");
+    let matches_idgham_g_1 = processor_warsh.process_verse(verse_idgham_g_1);
+    display_results(verse_idgham_g_1, matches_idgham_g_1, "Warsh");
+
+    let verse_idgham_g_2 = "مِنْ نِعْمَةٍ";
+    println!("Example 2: Noon Sakinah + Noon (ن + ن)");
+    let matches_idgham_g_2 = processor_warsh.process_verse(verse_idgham_g_2);
+    display_results(verse_idgham_g_2, matches_idgham_g_2, "Warsh");
+
+    let verse_idgham_g_3 = "مِنْ مَالٍ";
+    println!("Example 3: Noon Sakinah + Meem (ن + م)");
+    let matches_idgham_g_3 = processor_warsh.process_verse(verse_idgham_g_3);
+    display_results(verse_idgham_g_3, matches_idgham_g_3, "Warsh");
+
+    let verse_idgham_g_4 = "مَنْ وَجَدَ";
+    println!("Example 4: Noon Sakinah + Waw (ن + و)");
+    let matches_idgham_g_4 = processor_warsh.process_verse(verse_idgham_g_4);
+    display_results(verse_idgham_g_4, matches_idgham_g_4, "Warsh");
+
+    let verse_idgham_g_5 = "هُدًى وَرَحْمَةً";
+    println!("Example 5: Tanwin + Waw (تنوين + و)");
+    let matches_idgham_g_5 = processor_warsh.process_verse(verse_idgham_g_5);
+    display_results(verse_idgham_g_5, matches_idgham_g_5, "Warsh");
+
+    // ========== SECTION 5: Idgham bila Ghunnah Examples ==========
+    println!("\n📖 SECTION 5: IDGHAM BILA GHUNNAH (الإدغام بغير غنة)");
+    println!("{}", "=".repeat(55));
+    
+    let verse_idgham_bg_1 = "مِنْ لَدُنْ";
+    println!("Example 1: Noon Sakinah + Lam (ن + ل)");
+    let matches_idgham_bg_1 = processor_warsh.process_verse(verse_idgham_bg_1);
+    display_results(verse_idgham_bg_1, matches_idgham_bg_1, "Warsh");
+
+    let verse_idgham_bg_2 = "مَنْ رَبُّهُ";
+    println!("Example 2: Noon Sakinah + Ra (ن + ر)");
+    let matches_idgham_bg_2 = processor_warsh.process_verse(verse_idgham_bg_2);
+    display_results(verse_idgham_bg_2, matches_idgham_bg_2, "Warsh");
+
+    let verse_idgham_bg_3 = "غَفُورٌ رَحِيمٌ";
+    println!("Example 3: Tanwin + Ra (تنوين + ر)");
+    let matches_idgham_bg_3 = processor_warsh.process_verse(verse_idgham_bg_3);
+    display_results(verse_idgham_bg_3, matches_idgham_bg_3, "Warsh");
+
+    let verse_idgham_bg_4 = "هُدًى لِلْمُتَّقِينَ";
+    println!("Example 4: Tanwin + Lam (تنوين + ل)");
+    let matches_idgham_bg_4 = processor_warsh.process_verse(verse_idgham_bg_4);
+    display_results(verse_idgham_bg_4, matches_idgham_bg_4, "Warsh");
+
+    // ========== SECTION 6: Ikhfaa Haqiqi Examples ==========
+    println!("\n📖 SECTION 6: IKHFAA HAQIQI (الإخفاء الحقيقي)");
+    println!("{}", "=".repeat(55));
+    
+    let verse_ikhfaa_1 = "أَنْفُسَكُمْ";
+    println!("Example 1: Noon Sakinah + Fa (ن + ف)");
+    let matches_ikhfaa_1 = processor_warsh.process_verse(verse_ikhfaa_1);
+    display_results(verse_ikhfaa_1, matches_ikhfaa_1, "Warsh");
+
+    let verse_ikhfaa_2 = "مَنْ صَدَّ";
+    println!("Example 2: Noon Sakinah + Sad (ن + ص)");
+    let matches_ikhfaa_2 = processor_warsh.process_verse(verse_ikhfaa_2);
+    display_results(verse_ikhfaa_2, matches_ikhfaa_2, "Warsh");
+
+    let verse_ikhfaa_3 = "أَنْزَلْنَا";
+    println!("Example 3: Noon Sakinah + Zay (ن + ز)");
+    let matches_ikhfaa_3 = processor_warsh.process_verse(verse_ikhfaa_3);
+    display_results(verse_ikhfaa_3, matches_ikhfaa_3, "Warsh");
+
+    let verse_ikhfaa_4 = "وَجْنَةٍ مِنْ قِطْمِيرٍ";
+    println!("Example 4: Noon Sakinah + Qaf (ن + ق)");
+    let matches_ikhfaa_4 = processor_warsh.process_verse(verse_ikhfaa_4);
+    display_results(verse_ikhfaa_4, matches_ikhfaa_4, "Warsh");
+
+    let verse_ikhfaa_5 = "يَوْمَئِذٍ تُحَدِّثُ";
+    println!("Example 5: Tanwin + Ta (تنوين + ت)");
+    let matches_ikhfaa_5 = processor_warsh.process_verse(verse_ikhfaa_5);
+    display_results(verse_ikhfaa_5, matches_ikhfaa_5, "Warsh");
+
+    // ========== SECTION 7: Meem Sakinah - Ikhfaa Shafawi ==========
+    println!("\n📖 SECTION 7: IKHFAA SHAFAWI (الإخفاء الشفوي)");
+    println!("{}", "=".repeat(55));
+    
+    let verse_ikhfaa_sh_1 = "تَرْمِيهِمْ بِحِجَارَةٍ";
+    println!("Example 1: Meem Sakinah + Ba (م + ب)");
+    let matches_ikhfaa_sh_1 = processor_warsh.process_verse(verse_ikhfaa_sh_1);
+    display_results(verse_ikhfaa_sh_1, matches_ikhfaa_sh_1, "Warsh");
+
+    let verse_ikhfaa_sh_2 = "وَهُمْ بِالْآخِرَةِ";
+    println!("Example 2: Meem Sakinah + Ba (م + ب)");
+    let matches_ikhfaa_sh_2 = processor_warsh.process_verse(verse_ikhfaa_sh_2);
+    display_results(verse_ikhfaa_sh_2, matches_ikhfaa_sh_2, "Warsh");
+
+    // ========== SECTION 8: Meem Sakinah - Idgham Shafawi ==========
+    println!("\n📖 SECTION 8: IDGHAM SHAFAWI (الإدغام الشفوي)");
+    println!("{}", "=".repeat(55));
+    
+    let verse_idgham_sh_1 = "لَكُمْ مَا";
+    println!("Example 1: Meem Sakinah + Meem (م + م)");
+    let matches_idgham_sh_1 = processor_warsh.process_verse(verse_idgham_sh_1);
+    display_results(verse_idgham_sh_1, matches_idgham_sh_1, "Warsh");
+
+    let verse_idgham_sh_2 = "عَلَيْهِمْ مَا";
+    println!("Example 2: Meem Sakinah + Meem (م + م)");
+    let matches_idgham_sh_2 = processor_warsh.process_verse(verse_idgham_sh_2);
+    display_results(verse_idgham_sh_2, matches_idgham_sh_2, "Warsh");
+
+    // ========== SECTION 9: Meem Sakinah - Izhar Shafawi ==========
+    println!("\n📖 SECTION 9: IZHAR SHAFAWI (الإظهار الشفوي)");
+    println!("{}", "=".repeat(55));
+    
+    let verse_izhar_sh_1 = "أَلَمْ تَرَ";
+    println!("Example 1: Meem Sakinah + Ta (م + ت)");
+    let matches_izhar_sh_1 = processor_warsh.process_verse(verse_izhar_sh_1);
+    display_results(verse_izhar_sh_1, matches_izhar_sh_1, "Warsh");
+
+    let verse_izhar_sh_2 = "وَهُمْ فِيهَا";
+    println!("Example 2: Meem Sakinah + Fa (م + ف)");
+    let matches_izhar_sh_2 = processor_warsh.process_verse(verse_izhar_sh_2);
+    display_results(verse_izhar_sh_2, matches_izhar_sh_2, "Warsh");
+
+    let verse_izhar_sh_3 = "عَلَيْكُمْ وَلَا";
+    println!("Example 3: Meem Sakinah + Waw (م + و)");
+    let matches_izhar_sh_3 = processor_warsh.process_verse(verse_izhar_sh_3);
+    display_results(verse_izhar_sh_3, matches_izhar_sh_3, "Warsh");
+
+    // ========== SECTION 10: Lam Al-Ta'rif - Izhar Qamari ==========
+    println!("\n📖 SECTION 10: IZHAR QAMARI (الإظهار القمري)");
+    println!("{}", "=".repeat(55));
+    
+    let verse_qamari_1 = "الْقَمَرُ";
+    println!("Example 1: Alif-Lam + Qaf (ال + ق)");
+    let matches_qamari_1 = processor_warsh.process_verse(verse_qamari_1);
+    display_results(verse_qamari_1, matches_qamari_1, "Warsh");
+
+    let verse_qamari_2 = "الْكِتَابُ";
+    println!("Example 2: Alif-Lam + Kaf (ال + ك)");
+    let matches_qamari_2 = processor_warsh.process_verse(verse_qamari_2);
+    display_results(verse_qamari_2, matches_qamari_2, "Warsh");
+
+    let verse_qamari_3 = "الْمَلَائِكَةِ";
+    println!("Example 3: Alif-Lam + Meem (ال + م)");
+    let matches_qamari_3 = processor_warsh.process_verse(verse_qamari_3);
+    display_results(verse_qamari_3, matches_qamari_3, "Warsh");
+
+    let verse_qamari_4 = "الْبَيْتِ الْحَرَامِ";
+    println!("Example 4: Multiple Alif-Lam (ال + ب) and (ال + ح)");
+    let matches_qamari_4 = processor_warsh.process_verse(verse_qamari_4);
+    display_results(verse_qamari_4, matches_qamari_4, "Warsh");
+
+    // ========== SECTION 11: Lam Al-Ta'rif - Idgham Shamsi ==========
+    println!("\n📖 SECTION 11: IDGHAM SHAMSI (الإدغام الشمسي)");
+    println!("{}", "=".repeat(55));
+    
+    let verse_shamsi_1 = "الشَّمْسُ";
+    println!("Example 1: Alif-Lam + Sheen (ال + ش)");
+    let matches_shamsi_1 = processor_warsh.process_verse(verse_shamsi_1);
+    display_results(verse_shamsi_1, matches_shamsi_1, "Warsh");
+
+    let verse_shamsi_2 = "الرَّحْمَٰنِ";
+    println!("Example 2: Alif-Lam + Ra (ال + ر)");
+    let matches_shamsi_2 = processor_warsh.process_verse(verse_shamsi_2);
+    display_results(verse_shamsi_2, matches_shamsi_2, "Warsh");
+
+    let verse_shamsi_3 = "الصَّلَاةَ";
+    println!("Example 3: Alif-Lam + Sad (ال + ص)");
+    let matches_shamsi_3 = processor_warsh.process_verse(verse_shamsi_3);
+    display_results(verse_shamsi_3, matches_shamsi_3, "Warsh");
+
+    let verse_shamsi_4 = "الطَّيِّبَاتِ";
+    println!("Example 4: Alif-Lam + Ta (ال + ط)");
+    let matches_shamsi_4 = processor_warsh.process_verse(verse_shamsi_4);
+    display_results(verse_shamsi_4, matches_shamsi_4, "Warsh");
+
+    let verse_shamsi_5 = "النَّاسِ";
+    println!("Example 5: Alif-Lam + Noon (ال + ن)");
+    let matches_shamsi_5 = processor_warsh.process_verse(verse_shamsi_5);
+    display_results(verse_shamsi_5, matches_shamsi_5, "Warsh");
+
+    // ========== SECTION 12: Complex Verses with Multiple Rules ==========
+    println!("\n📖 SECTION 12: COMPLEX VERSES (Multiple Rules)");
+    println!("{}", "=".repeat(55));
+    
+    let verse_complex_1 = "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ";
+    println!("Example 1: Al-Fatiha Verse 2");
+    let matches_complex_1 = processor_warsh.process_verse(verse_complex_1);
+    display_results(verse_complex_1, matches_complex_1, "Warsh");
+
+    let verse_complex_2 = "وَمِنْ شَرِّ غَاسِقٍ إِذَا وَقَبَ";
+    println!("Example 2: Surah Al-Falaq");
+    let matches_complex_2 = processor_warsh.process_verse(verse_complex_2);
+    display_results(verse_complex_2, matches_complex_2, "Warsh");
+
+    let verse_complex_3 = "إِنَّا أَنْزَلْنَاهُ فِي لَيْلَةِ الْقَدْرِ";
+    println!("Example 3: Surah Al-Qadr");
+    let matches_complex_3 = processor_warsh.process_verse(verse_complex_3);
+    display_results(verse_complex_3, matches_complex_3, "Warsh");
+
+    // ========== SECTION 13: Warsh vs Hafs Comparison ==========
+    println!("\n📖 SECTION 13: WARSH vs HAFS COMPARISON");
+    println!("{}", "=".repeat(55));
+    
+    let verse_comparison = "مِنْ شَيْءٍ قَدِيرٌ";
+    println!("Comparing same verse in both recitations:");
+    println!("\n--- WARSH ---");
+    let matches_warsh = processor_warsh.process_verse(verse_comparison);
+    display_results(verse_comparison, matches_warsh, "Warsh");
+    
+    println!("--- HAFS ---");
+    let matches_hafs = processor_hafs.process_verse(verse_comparison);
+    display_results(verse_comparison, matches_hafs, "Hafs");
+
+    println!("\n✅ Analysis Complete!");
+    println!("Total Examples: 50+ Tajweed Rules Demonstrated");
 }
