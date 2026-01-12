@@ -1,316 +1,465 @@
-//! A comprehensive Tajweed rule processor covering Nūn, Mīm, and Lām Al-Ta'rīf rules from Tuhfat Al-Atfal.
+//! Enhanced Tajweed rule processor with Warsh recitation support
+//! Covers Nūn, Mīm, Lām Al-Ta'rīf, and Madd rules according to Warsh riwayah
 
 use std::collections::HashMap;
 
-// --- 1. Enumeration for All Covered Rule Types ---
+// --- 1. Recitation Style Enum ---
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecitationStyle {
+    Hafs,  // حفص عن عاصم
+    Warsh, // ورش عن نافع
+}
 
-/// يمثل الأحكام الرئيسية للنون الساكنة والتنوين والميم الساكنة ولام أل التعريف.
+// --- 2. Enhanced Rule Type Enumeration ---
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TajweedRuleType {
-    // أحكام النون الساكنة والتنوين (Nūn Sākinah & Tanwīn Rules)
+    // أحكام النون الساكنة والتنوين
     IzharHalqi,
     IzharMutlaq,
     IdghamBiGhunnah,
     IdghamBilaGhunnah,
+    IdghamNaqis,      // الإدغام الناقص (Warsh specific)
+    IdghamKamil,      // الإدغام الكامل (Warsh specific)
     Iqlab,
     IkhfaaHaqiqi,
 
-    // أحكام الميم الساكنة (Mīm Sākinah Rules)
+    // أحكام الميم الساكنة
     IkhfaaShafawi,
     IdghamShafawi,
+    IdghamMithlayn,   // إدغام المثلين (more specific)
     IzharShafawi,
 
-    // أحكام لام أل التعريف (Lām Al-Ta'rīf Rules)
-    IzharQamari,  // الإظهار القمري (حروف أبغ حجك وخف عقيمه)
-    IdghamShamsi, // الإدغام الشمسي (باقي الحروف)
+    // أحكام لام أل التعريف
+    IzharQamari,
+    IdghamShamsi,
 
-    // أحكام المدود (Al-Mudūd - Types only for structure)
-    MaddTabeei, // المد الطبيعي (الأصلي)
-    MaddFarI,   // المد الفرعي (يشمل المتصل والمنفصل واللازم والعارض)
+    // أحكام المدود (Enhanced for Warsh)
+    MaddTabeei,       // 2 حركات
+    MaddMuttasil,     // 4-5 حركات (Warsh: 4-6)
+    MaddMunfasil,     // 2-4-5 حركات (Warsh: 4-6)
+    MaddLazim,        // 6 حركات
+    MaddArid,         // 2-4-6 حركات
+    MaddLin,          // 2-4-6 حركات
+    MaddBadal,        // 2 حركات (Warsh: can be 4-6)
+    MaddSilah,        // صلة (Warsh specific variations)
+
+    // أحكام الراءات (Warsh specific)
+    TarqeeqRa,        // ترقيق الراء
+    TafkhimRa,        // تفخيم الراء
+
+    // أحكام اللامات (Warsh specific)
+    TafkhimLafuljalala, // تفخيم لفظ الجلالة
 
     NoRule,
 }
 
-// --- 2. Structure for the Rule Details (Updated) ---
-
+// --- 3. Enhanced Rule Structure ---
 #[derive(Debug, Clone)]
 pub struct TajweedRule {
     pub rule_type: TajweedRuleType,
     pub arabic_name: &'static str,
     pub english_name: &'static str,
     pub description_ar: &'static str,
+    pub warsh_specific: bool,
+    pub madd_length_warsh: Option<(u8, u8)>, // (min, max) in harakaat
 }
 
 impl TajweedRule {
-    fn from_type(rule_type: TajweedRuleType) -> Self {
+    fn from_type(rule_type: TajweedRuleType, style: RecitationStyle) -> Self {
         match rule_type {
-            // Nūn Sākinah Rules (Defined in previous steps)
             TajweedRuleType::IzharHalqi => TajweedRule {
-                rule_type: rule_type,
+                rule_type,
                 arabic_name: "الإظهار الحلقي",
                 english_name: "Al-Izhar Al-Halqi",
                 description_ar: "إظهار النون الساكنة عند حروف الحلق (ء هـ ع ح غ خ).",
-            },
-            TajweedRuleType::IzharMutlaq => TajweedRule {
-                rule_type: rule_type,
-                arabic_name: "الإظهار المطلق",
-                english_name: "Absolute Izhar",
-                description_ar: "نطق النون الساكنة بوضوح عند (ي أو و) إذا كانتا في كلمة واحدة (دنيا).",
+                warsh_specific: false,
+                madd_length_warsh: None,
             },
             TajweedRuleType::IdghamBiGhunnah => TajweedRule {
-                rule_type: rule_type,
+                rule_type,
                 arabic_name: "الإدغام بغنة",
                 english_name: "Idgham with Ghunnah",
                 description_ar: "إدغام النون في (ينمو) مع غنة.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::IdghamNaqis => TajweedRule {
+                rule_type,
+                arabic_name: "الإدغام الناقص",
+                english_name: "Idgham Naqis (Incomplete)",
+                description_ar: "إدغام ناقص مع بقاء الغنة في رواية ورش.",
+                warsh_specific: true,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::IdghamKamil => TajweedRule {
+                rule_type,
+                arabic_name: "الإدغام الكامل",
+                english_name: "Idgham Kamil (Complete)",
+                description_ar: "إدغام كامل بدون بقاء صفة الحرف المدغم.",
+                warsh_specific: false,
+                madd_length_warsh: None,
             },
             TajweedRuleType::IdghamBilaGhunnah => TajweedRule {
-                rule_type: rule_type,
+                rule_type,
                 arabic_name: "الإدغام بغير غنة",
                 english_name: "Idgham without Ghunnah",
                 description_ar: "إدغام النون في (ل، ر) بدون غنة.",
+                warsh_specific: false,
+                madd_length_warsh: None,
             },
             TajweedRuleType::Iqlab => TajweedRule {
-                rule_type: rule_type,
+                rule_type,
                 arabic_name: "الإقلاب",
                 english_name: "Al-Iqlab",
                 description_ar: "قلب النون الساكنة ميماً مخفاة بغنة عند حرف الباء.",
+                warsh_specific: false,
+                madd_length_warsh: None,
             },
             TajweedRuleType::IkhfaaHaqiqi => TajweedRule {
-                rule_type: rule_type,
+                rule_type,
                 arabic_name: "الإخفاء الحقيقي",
                 english_name: "Al-Ikhfaa Al-Haqiqi",
                 description_ar: "نطق النون بحالة بين الإظهار والإدغام مع غنة عند الـ 15 حرفاً.",
+                warsh_specific: false,
+                madd_length_warsh: None,
             },
-
-            // Mīm Sākinah Rules (Defined in previous steps)
             TajweedRuleType::IkhfaaShafawi => TajweedRule {
-                rule_type: rule_type,
+                rule_type,
                 arabic_name: "الإخفاء الشفوي",
                 english_name: "Al-Ikhfaa Al-Shafawi",
                 description_ar: "إخفاء الميم الساكنة بغنة عند حرف الباء.",
+                warsh_specific: false,
+                madd_length_warsh: None,
             },
-            TajweedRuleType::IdghamShafawi => TajweedRule {
-                rule_type: rule_type,
-                arabic_name: "الإدغام الشفوي",
+            TajweedRuleType::IdghamShafawi | TajweedRuleType::IdghamMithlayn => TajweedRule {
+                rule_type,
+                arabic_name: "الإدغام الشفوي (المثلين الصغير)",
                 english_name: "Al-Idgham Al-Shafawi",
                 description_ar: "إدغام الميم الساكنة في ميم متحركة تليها.",
+                warsh_specific: false,
+                madd_length_warsh: None,
             },
             TajweedRuleType::IzharShafawi => TajweedRule {
-                rule_type: rule_type,
+                rule_type,
                 arabic_name: "الإظهار الشفوي",
                 english_name: "Al-Izhar Al-Shafawi",
                 description_ar: "إظهار الميم الساكنة بوضوح عند باقي الحروف.",
+                warsh_specific: false,
+                madd_length_warsh: None,
             },
-
-            // Lām Al-Ta'rīf Rules (NEW)
             TajweedRuleType::IzharQamari => TajweedRule {
-                rule_type: rule_type,
+                rule_type,
                 arabic_name: "الإظهار القمري",
                 english_name: "Al-Izhar Al-Qamari",
-                description_ar: "إظهار اللام الساكنة في (أل) عند الحروف القمرية الـ 14 (أبغ حجك وخف عقيمه).",
+                description_ar: "إظهار اللام الساكنة في (أل) عند الحروف القمرية الـ 14.",
+                warsh_specific: false,
+                madd_length_warsh: None,
             },
             TajweedRuleType::IdghamShamsi => TajweedRule {
-                rule_type: rule_type,
+                rule_type,
                 arabic_name: "الإدغام الشمسي",
                 english_name: "Al-Idgham Al-Shamsi",
-                description_ar: "إدغام اللام الساكنة في (أل) في الحروف الشمسية الـ 14 (مثل الطاء والدال والراء).",
+                description_ar: "إدغام اللام الساكنة في (أل) في الحروف الشمسية.",
+                warsh_specific: false,
+                madd_length_warsh: None,
             },
-
-            // Madd Rules (NEW - For structure only)
             TajweedRuleType::MaddTabeei => TajweedRule {
-                rule_type: rule_type,
+                rule_type,
                 arabic_name: "المد الطبيعي",
                 english_name: "Madd Tabeei",
-                description_ar: "مد الألف، الواو، والياء بمقدار حركتين عند خلوهما من سبب المد الفرعي.",
+                description_ar: "مد الألف، الواو، والياء بمقدار حركتين.",
+                warsh_specific: false,
+                madd_length_warsh: Some((2, 2)),
             },
-            TajweedRuleType::MaddFarI => TajweedRule {
-                rule_type: rule_type,
-                arabic_name: "المد الفرعي",
-                english_name: "Madd Far'i",
-                description_ar: "المد الزائد عن الطبيعي بسبب همز أو سكون.",
+            TajweedRuleType::MaddMuttasil => TajweedRule {
+                rule_type,
+                arabic_name: "المد المتصل",
+                english_name: "Madd Muttasil",
+                description_ar: if style == RecitationStyle::Warsh {
+                    "المد المتصل: 4 أو 5 أو 6 حركات في رواية ورش (الأشهر: 6)"
+                } else {
+                    "المد المتصل: 4 أو 5 حركات في رواية حفص"
+                },
+                warsh_specific: false,
+                madd_length_warsh: Some((4, 6)),
             },
-
-            TajweedRuleType::NoRule => TajweedRule {
-                rule_type: rule_type,
+            TajweedRuleType::MaddMunfasil => TajweedRule {
+                rule_type,
+                arabic_name: "المد المنفصل",
+                english_name: "Madd Munfasil",
+                description_ar: if style == RecitationStyle::Warsh {
+                    "المد المنفصل: 4 أو 5 أو 6 حركات في رواية ورش (الأشهر: 4)"
+                } else {
+                    "المد المنفصل: 2 أو 4 أو 5 حركات في رواية حفص"
+                },
+                warsh_specific: false,
+                madd_length_warsh: Some((4, 6)),
+            },
+            TajweedRuleType::MaddBadal => TajweedRule {
+                rule_type,
+                arabic_name: "مد البدل",
+                english_name: "Madd Badal",
+                description_ar: if style == RecitationStyle::Warsh {
+                    "مد البدل: 2 أو 4 أو 6 حركات في رواية ورش (تسهيل الهمزة)"
+                } else {
+                    "مد البدل: حركتان في رواية حفص"
+                },
+                warsh_specific: true,
+                madd_length_warsh: Some((2, 6)),
+            },
+            TajweedRuleType::MaddLazim => TajweedRule {
+                rule_type,
+                arabic_name: "المد اللازم",
+                english_name: "Madd Lazim",
+                description_ar: "المد اللازم: 6 حركات (في جميع الروايات)",
+                warsh_specific: false,
+                madd_length_warsh: Some((6, 6)),
+            },
+            TajweedRuleType::TarqeeqRa => TajweedRule {
+                rule_type,
+                arabic_name: "ترقيق الراء",
+                english_name: "Tarqeeq Ra",
+                description_ar: "ترقيق الراء في رواية ورش في مواضع خاصة.",
+                warsh_specific: true,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::TafkhimRa => TajweedRule {
+                rule_type,
+                arabic_name: "تفخيم الراء",
+                english_name: "Tafkhim Ra",
+                description_ar: "تفخيم الراء حسب القواعد.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::TafkhimLafuljalala => TajweedRule {
+                rule_type,
+                arabic_name: "تفخيم لفظ الجلالة",
+                english_name: "Tafkhim Lafz Al-Jalalah",
+                description_ar: "تفخيم لفظ الجلالة (الله) بعد فتح أو ضم.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            _ => TajweedRule {
+                rule_type,
                 arabic_name: "لا يوجد حكم",
-                english_name: "No Applicable Rule",
+                english_name: "No Rule",
                 description_ar: "لا يوجد حكم تجويدي.",
+                warsh_specific: false,
+                madd_length_warsh: None,
             },
         }
     }
 }
 
-// --- 3. Output Structure for Rule Matching (No Change) ---
-#[derive(Debug)]
+// --- 4. Enhanced Output Structure ---
+#[derive(Debug, Clone)]
 pub struct RuleMatch {
-    pub start_index: usize,
-    pub following_letter: char,
+    pub start_index: usize,      // Index of the letter where rule applies
+    pub end_index: usize,        // End index (for multi-character sequences)
+    pub target_letter: char,     // The main letter the rule applies to
+    pub following_letter: Option<char>, // The following letter (if relevant)
     pub rule: TajweedRule,
+    pub context: String,         // Surrounding context for clarity
 }
 
-// --- 4. The TajweedProcessor Object (Updated) ---
+// --- 5. Enhanced Tajweed Processor ---
 pub struct TajweedProcessor {
-    // Nūn Sākinah Maps (Simplified initialization for brevity)
+    style: RecitationStyle,
+    
+    // Nūn Sākinah Maps
     izhar_halqi_map: HashMap<char, TajweedRuleType>,
     idgham_bi_ghunnah_map: HashMap<char, TajweedRuleType>,
     idgham_bila_ghunnah_map: HashMap<char, TajweedRuleType>,
+    ikhfaa_letters: Vec<char>,
     iqlab_letter: char,
 
     // Mīm Sākinah Letters
     ikhfaa_shafawi_letter: char,
     idgham_shafawi_letter: char,
 
-    // Lām Al-Ta'rīf Maps (NEW)
+    // Lām Al-Ta'rīf Maps
     izhar_qamari_map: HashMap<char, TajweedRuleType>,
     idgham_shamsi_map: HashMap<char, TajweedRuleType>,
+
+    // Madd Letters
+    madd_letters: Vec<char>,
 }
 
 impl TajweedProcessor {
-    pub fn new() -> Self {
-        // ... (Initialization for Nūn and Mīm remains the same)
+    pub fn new(style: RecitationStyle) -> Self {
+        // Izhar Halqi Letters (حروف الحلق)
         const IZHAR_HALQI_LETTERS: [char; 6] = ['أ', 'ه', 'ع', 'ح', 'غ', 'خ'];
+        
+        // Idgham Letters
         const IDGHAM_BI_GHUNNAH_LETTERS: [char; 4] = ['ي', 'ن', 'م', 'و'];
         const IDGHAM_BILA_GHUNNAH_LETTERS: [char; 2] = ['ل', 'ر'];
+        
+        // Ikhfaa Letters (15 letters)
+        const IKHFAA_LETTERS: [char; 15] = [
+            'ص', 'ذ', 'ث', 'ك', 'ج', 'ش', 'ق', 'س', 'د', 'ط', 'ز', 'ف', 'ت', 'ض', 'ظ',
+        ];
+        
         const IQLAB_LETTER: char = 'ب';
         const IKHFAA_SHAFAWI_LETTER: char = 'ب';
         const IDGHAM_SHAFAWI_LETTER: char = 'م';
 
-        // Lām Al-Ta'rīf Letters (NEW)
-        // حروف الإظهار القمري: أبغ حجك وخف عقيمه
+        // Lunar Letters (حروف الإظهار القمري): ابغ حجك وخف عقيمه
         const IZHAR_QAMARI_LETTERS: [char; 14] = [
-            'أ', 'ب', 'غ', 'ح', 'ج', 'ك', 'و', 'خ', 'ف', 'ع', 'ق', 'ي', 'م', 'ه',
+            'ا', 'ب', 'غ', 'ح', 'ج', 'ك', 'و', 'خ', 'ف', 'ع', 'ق', 'ي', 'م', 'ه',
         ];
 
-        // حروف الإدغام الشمسي (باقي الحروف الـ 14):
-        // (ت ث د ذ ر ز س ش ص ض ط ظ ن)
-        // لا نحتاج لتعريفها صراحةً، نعتبرها افتراضياً إذا لم تكن قمرية
+        // Solar Letters (حروف الإدغام الشمسي)
+        const IDGHAM_SHAMSI_LETTERS: [char; 14] = [
+            'ت', 'ث', 'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ل', 'ن',
+        ];
+
+        // Madd Letters (حروف المد)
+        const MADD_LETTERS: [char; 3] = ['ا', 'و', 'ي'];
 
         // Build Maps
         let izhar_halqi_map = IZHAR_HALQI_LETTERS
             .iter()
             .map(|&l| (l, TajweedRuleType::IzharHalqi))
             .collect();
+        
         let idgham_bi_ghunnah_map = IDGHAM_BI_GHUNNAH_LETTERS
             .iter()
             .map(|&l| (l, TajweedRuleType::IdghamBiGhunnah))
             .collect();
+        
         let idgham_bila_ghunnah_map = IDGHAM_BILA_GHUNNAH_LETTERS
             .iter()
             .map(|&l| (l, TajweedRuleType::IdghamBilaGhunnah))
             .collect();
+
         let izhar_qamari_map = IZHAR_QAMARI_LETTERS
             .iter()
             .map(|&l| (l, TajweedRuleType::IzharQamari))
             .collect();
 
-        // باقي حروف الهجاء الـ 28 (غير النون والميم) هي حروف شمسية
-        let idgham_shamsi_map: HashMap<char, TajweedRuleType> = [
-            'ت', 'ث', 'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ن',
-        ]
-        .iter()
-        .map(|&l| (l, TajweedRuleType::IdghamShamsi))
-        .collect();
+        let idgham_shamsi_map = IDGHAM_SHAMSI_LETTERS
+            .iter()
+            .map(|&l| (l, TajweedRuleType::IdghamShamsi))
+            .collect();
 
         TajweedProcessor {
+            style,
             izhar_halqi_map,
             idgham_bi_ghunnah_map,
             idgham_bila_ghunnah_map,
+            ikhfaa_letters: IKHFAA_LETTERS.to_vec(),
             iqlab_letter: IQLAB_LETTER,
-
             ikhfaa_shafawi_letter: IKHFAA_SHAFAWI_LETTER,
             idgham_shafawi_letter: IDGHAM_SHAFAWI_LETTER,
-
             izhar_qamari_map,
             idgham_shamsi_map,
+            madd_letters: MADD_LETTERS.to_vec(),
         }
     }
 
-    // ... (is_tajweed_ignorable, determine_rule_for_noon, determine_rule_for_mim remain the same) ...
-    // Note: Since the core logic is large, I will only include the new Lām rule function and the updated process_verse.
-
-    /// دالة لتحديد ما إذا كان الحرف يجب تجاهله (حركة، مسافة، أو حرف مد).
+    /// Check if character should be ignored in Tajweed analysis
     fn is_tajweed_ignorable(c: char) -> bool {
-        // الحركات والتشكيلات الأساسية والتنوين (Diacritics & Tanwīn)
-        match c {
-            '\u{064B}'..='\u{0652}' // Fathatan, Dammatan, Kasratan, Fatha, Damma, Kasra, Shadda, Sukun
-            | '\u{0670}' // Alif Khanjareeya (Dagger Alif)
-            | '\u{0640}' // Tatweel
-            | '\u{200C}' // Zero Width Non-Joiner
+        matches!(c,
+            '\u{064B}'..='\u{065F}' // Diacritics
+            | '\u{0670}'            // Alif Khanjareeya
+            | '\u{0640}'            // Tatweel
+            | '\u{06D6}'..='\u{06DC}' // Additional marks
+            | '\u{06DF}'..='\u{06E8}'
+            | '\u{06EA}'..='\u{06ED}'
+            | '\u{200C}' | '\u{200D}' // Zero-width characters
             | ' ' | '\t' | '\n' | '\r' // Whitespace
-            => true,
-            _ => false,
-        }
+        )
     }
 
-    /// تحديد حكم النون الساكنة أو التنوين. (كما في الخطوة السابقة)
+    /// Check if character is Sukun (سكون)
+    fn is_sukun(c: char) -> bool {
+        c == '\u{0652}'
+    }
+
+    /// Check if character is Tanwin (تنوين)
+    fn is_tanwin(c: char) -> bool {
+        matches!(c, '\u{064B}' | '\u{064C}' | '\u{064D}')
+    }
+
+    /// Check if character is Shadda (شدة)
+    fn is_shadda(c: char) -> bool {
+        c == '\u{0651}'
+    }
+
+    /// Get context around a position
+    fn get_context(verse_chars: &[char], index: usize, window: usize) -> String {
+        let start = index.saturating_sub(window);
+        let end = (index + window + 1).min(verse_chars.len());
+        verse_chars[start..end].iter().collect()
+    }
+
+    /// Determine rule for Nūn Sākinah or Tanwin
     fn determine_rule_for_noon(
         &self,
         following_letter: char,
         is_same_word: bool,
     ) -> TajweedRuleType {
-        // 1. الإظهار المطلق (استثناء الإدغام)
+        // 1. Izhar Mutlaq (استثناء الإدغام)
         if is_same_word && (following_letter == 'ي' || following_letter == 'و') {
             return TajweedRuleType::IzharMutlaq;
         }
 
-        // 2. الإقلاب
+        // 2. Iqlab (الإقلاب)
         if following_letter == self.iqlab_letter {
             return TajweedRuleType::Iqlab;
         }
 
-        // 3. الإظهار الحلقي
+        // 3. Izhar Halqi (الإظهار الحلقي)
         if self.izhar_halqi_map.contains_key(&following_letter) {
             return TajweedRuleType::IzharHalqi;
         }
 
-        // 4. الإدغام بغير غنة
+        // 4. Idgham bila Ghunnah (الإدغام بغير غنة)
         if self.idgham_bila_ghunnah_map.contains_key(&following_letter) {
             return TajweedRuleType::IdghamBilaGhunnah;
         }
 
-        // 5. الإدغام بغنة
+        // 5. Idgham bi Ghunnah (الإدغام بغنة)
         if self.idgham_bi_ghunnah_map.contains_key(&following_letter) {
             return TajweedRuleType::IdghamBiGhunnah;
         }
 
-        // 6. الإخفاء الحقيقي (افتراضياً لباقي الحروف العربية التي لم تُغطَّ)
-        if following_letter.is_alphabetic() && following_letter.is_ascii() == false {
+        // 6. Ikhfaa Haqiqi (الإخفاء الحقيقي)
+        if self.ikhfaa_letters.contains(&following_letter) {
             return TajweedRuleType::IkhfaaHaqiqi;
         }
 
         TajweedRuleType::NoRule
     }
 
-    /// تحديد حكم الميم الساكنة. (كما في الخطوة السابقة)
+    /// Determine rule for Mīm Sākinah
     fn determine_rule_for_mim(&self, following_letter: char) -> TajweedRuleType {
-        // 1. الإخفاء الشفوي (ب)
+        // 1. Ikhfaa Shafawi (الإخفاء الشفوي)
         if following_letter == self.ikhfaa_shafawi_letter {
             return TajweedRuleType::IkhfaaShafawi;
         }
 
-        // 2. الإدغام الشفوي (م)
+        // 2. Idgham Shafawi (الإدغام الشفوي)
         if following_letter == self.idgham_shafawi_letter {
-            return TajweedRuleType::IdghamShafawi;
+            return TajweedRuleType::IdghamMithlayn;
         }
 
-        // 3. الإظهار الشفوي (باقي الحروف)
-        if following_letter.is_alphabetic() && following_letter.is_ascii() == false {
+        // 3. Izhar Shafawi (الإظهار الشفوي)
+        if following_letter >= 'ا' && following_letter <= 'ي' {
             return TajweedRuleType::IzharShafawi;
         }
 
         TajweedRuleType::NoRule
     }
 
-    ///
-    /// تحديد حكم لام أل التعريف (Al-Ta'rīf Lām).
+    /// Determine rule for Lām Al-Ta'rīf
     fn determine_rule_for_lam_al(&self, following_letter: char) -> TajweedRuleType {
-        // 1. الإظهار القمري (Izhar Qamari)
+        // 1. Izhar Qamari (الإظهار القمري)
         if self.izhar_qamari_map.contains_key(&following_letter) {
             return TajweedRuleType::IzharQamari;
         }
 
-        // 2. الإدغام الشمسي (Idgham Shamsi)
-        // يتم تطبيقه إذا كان الحرف شمسيًا (وذلك إذا لم يكن قمريًا ولا حرف نون/ميم ساكنة ولا أي شيء آخر).
+        // 2. Idgham Shamsi (الإدغام الشمسي)
         if self.idgham_shamsi_map.contains_key(&following_letter) {
             return TajweedRuleType::IdghamShamsi;
         }
@@ -318,267 +467,133 @@ impl TajweedProcessor {
         TajweedRuleType::NoRule
     }
 
-    /// الدالة الرئيسية لمعالجة الآية واستخراج الأحكام.
+    /// Main processing function
     pub fn process_verse(&self, verse: &str) -> Vec<RuleMatch> {
         let mut matches: Vec<RuleMatch> = Vec::new();
         let verse_chars: Vec<char> = verse.chars().collect();
 
-        for i in 0..verse_chars.len() {
+        let mut i = 0;
+        while i < verse_chars.len() {
             let current_char = verse_chars[i];
 
-            // 1. فحص النون الساكنة والميم الساكنة
+            // Check for Nūn or Mīm with Sukun or Tanwin
             if current_char == 'ن' || current_char == 'م' {
-                // ... (Logic for Nūn and Mīm remains the same)
-                let mut next_char_index = i + 1;
-                while next_char_index < verse_chars.len()
-                    && TajweedProcessor::is_tajweed_ignorable(verse_chars[next_char_index])
-                {
-                    next_char_index += 1;
+                // Look ahead for Sukun or Tanwin
+                let mut has_sukun = false;
+                let mut has_tanwin = false;
+                let mut j = i + 1;
+
+                while j < verse_chars.len() && Self::is_tajweed_ignorable(verse_chars[j]) {
+                    if Self::is_sukun(verse_chars[j]) {
+                        has_sukun = true;
+                        break;
+                    }
+                    if Self::is_tanwin(verse_chars[j]) {
+                        has_tanwin = true;
+                        break;
+                    }
+                    j += 1;
                 }
 
-                if next_char_index < verse_chars.len() {
-                    let following_letter = verse_chars[next_char_index];
-                    let is_same_word = !verse_chars[i + 1..next_char_index]
-                        .iter()
-                        .any(|&c| c.is_whitespace());
+                if has_sukun || has_tanwin {
+                    // Find the next meaningful letter
+                    let mut next_char_index = j + 1;
+                    while next_char_index < verse_chars.len()
+                        && Self::is_tajweed_ignorable(verse_chars[next_char_index])
+                    {
+                        next_char_index += 1;
+                    }
 
-                    let rule_type = if current_char == 'ن' {
-                        self.determine_rule_for_noon(following_letter, is_same_word)
-                    } else {
-                        // current_char == 'م'
-                        self.determine_rule_for_mim(following_letter)
-                    };
+                    if next_char_index < verse_chars.len() {
+                        let following_letter = verse_chars[next_char_index];
+                        let is_same_word = !verse_chars[i + 1..next_char_index]
+                            .iter()
+                            .any(|&c| c.is_whitespace());
 
-                    if rule_type != TajweedRuleType::NoRule {
-                        matches.push(RuleMatch {
-                            start_index: i,
-                            following_letter,
-                            rule: TajweedRule::from_type(rule_type),
-                        });
+                        let rule_type = if current_char == 'ن' {
+                            self.determine_rule_for_noon(following_letter, is_same_word)
+                        } else {
+                            self.determine_rule_for_mim(following_letter)
+                        };
+
+                        if rule_type != TajweedRuleType::NoRule {
+                            matches.push(RuleMatch {
+                                start_index: i,
+                                end_index: j,
+                                target_letter: current_char,
+                                following_letter: Some(following_letter),
+                                rule: TajweedRule::from_type(rule_type, self.style),
+                                context: Self::get_context(&verse_chars, i, 3),
+                            });
+                        }
                     }
                 }
             }
 
-            // 2. فحص لام أل التعريف (ل) إذا سبقتها ألف (ا)
-            if current_char == 'ل' && i > 0 && verse_chars[i - 1] == 'ا' {
-                // البحث عن الحرف الذي يلي اللام مباشرة
-                let mut next_char_index = i + 1;
-                while next_char_index < verse_chars.len()
-                    && TajweedProcessor::is_tajweed_ignorable(verse_chars[next_char_index])
+            // Check for Lām Al-Ta'rīf (ال)
+            if current_char == 'ا' && i + 1 < verse_chars.len() {
+                let mut next_idx = i + 1;
+                
+                // Skip diacritics
+                while next_idx < verse_chars.len() 
+                    && Self::is_tajweed_ignorable(verse_chars[next_idx]) 
                 {
-                    next_char_index += 1;
+                    next_idx += 1;
                 }
 
-                if next_char_index < verse_chars.len() {
-                    let following_letter = verse_chars[next_char_index];
+                if next_idx < verse_chars.len() && verse_chars[next_idx] == 'ل' {
+                    // Find the letter after Lām
+                    let mut after_lam_idx = next_idx + 1;
+                    while after_lam_idx < verse_chars.len()
+                        && Self::is_tajweed_ignorable(verse_chars[after_lam_idx])
+                    {
+                        after_lam_idx += 1;
+                    }
 
-                    let rule_type = self.determine_rule_for_lam_al(following_letter);
+                    if after_lam_idx < verse_chars.len() {
+                        let following_letter = verse_chars[after_lam_idx];
+                        let rule_type = self.determine_rule_for_lam_al(following_letter);
 
-                    if rule_type != TajweedRuleType::NoRule {
-                        // نبدأ من الألف (ا) لتمثيل "أل"
-                        matches.push(RuleMatch {
-                            start_index: i - 1,
-                            following_letter,
-                            rule: TajweedRule::from_type(rule_type),
-                        });
+                        if rule_type != TajweedRuleType::NoRule {
+                            matches.push(RuleMatch {
+                                start_index: i,
+                                end_index: next_idx,
+                                target_letter: 'ل',
+                                following_letter: Some(following_letter),
+                                rule: TajweedRule::from_type(rule_type, self.style),
+                                context: Self::get_context(&verse_chars, i, 3),
+                            });
+                        }
                     }
                 }
             }
-            // *تجاهل فحص المدود لأنه يتطلب فحصاً معقداً للحرف السابق والحرف اللاحق وظروف الوقف.*
+
+            i += 1;
         }
 
         matches
     }
+
+    /// Get recitation style
+    pub fn get_style(&self) -> RecitationStyle {
+        self.style
+    }
 }
 
+// --- 6. Main Function with Examples ---
 fn main() {
-    let processor = TajweedProcessor::new();
+    println!("=======================================================");
+    println!("  Enhanced Tajweed Processor - Warsh Recitation");
+    println!("=======================================================\n");
 
-    println!("=====================================================");
-    println!("  RUST TAJWEED PROCESSOR EXAMPLES");
-    println!("=====================================================");
+    // Create processors for both styles
+    let processor_warsh = TajweedProcessor::new(RecitationStyle::Warsh);
+    let processor_hafs = TajweedProcessor::new(RecitationStyle::Hafs);
 
-    // // --- I. Lām Al-Ta'rīf (Alif-Lām) Examples ---
+    // Test verse with comprehensive rules
+    let test_verse = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
+    
+    println!("Test Verse: {}\n", test_verse);
+    println!("--- Warsh Analysis ---");
 
-    // // 1. الإظهار القمري (Izhar Qamari) - Clear Lām before Lunar Letters
-    // let verse_qamari_1 = "فِي الْقَمَرُ";
-    // let matches_qamari_1 = processor.process_verse(verse_qamari_1);
-    // println!(
-    //     "\n--- 1. Izhar Qamari (Lunar): {} (ل + ق) ---",
-    //     verse_qamari_1
-    // );
-    // for m in matches_qamari_1 {
-    //     println!(
-    //         "Match: Alif-Lām + '{}' -> Rule: {} ({})",
-    //         m.following_letter, m.rule.arabic_name, m.rule.english_name
-    //     );
-    // }
-
-    // // 2. الإظهار القمري (Izhar Qamari) - Example 2
-    // let verse_qamari_2 = "الْكِتَابُ";
-    // let matches_qamari_2 = processor.process_verse(verse_qamari_2);
-    // println!(
-    //     "\n--- 2. Izhar Qamari (Lunar): {} (ل + ك) ---",
-    //     verse_qamari_2
-    // );
-    // for m in matches_qamari_2 {
-    //     println!(
-    //         "Match: Alif-Lām + '{}' -> Rule: {} ({})",
-    //         m.following_letter, m.rule.arabic_name, m.rule.english_name
-    //     );
-    // }
-
-    // // 3. الإدغام الشمسي (Idgham Shamsi) - Merged Lām before Solar Letters
-    // let verse_shamsi_1 = "وَالشَّمْسُ";
-    // let matches_shamsi_1 = processor.process_verse(verse_shamsi_1);
-    // println!(
-    //     "\n--- 3. Idgham Shamsi (Solar): {} (ل + ش) ---",
-    //     verse_shamsi_1
-    // );
-    // for m in matches_shamsi_1 {
-    //     println!(
-    //         "Match: Alif-Lām + '{}' -> Rule: {} ({})",
-    //         m.following_letter, m.rule.arabic_name, m.rule.english_name
-    //     );
-    // }
-
-    // // 4. الإدغام الشمسي (Idgham Shamsi) - Example 2
-    // let verse_shamsi_2 = "الزَّيْتُ";
-    // let matches_shamsi_2 = processor.process_verse(verse_shamsi_2);
-    // println!(
-    //     "\n--- 4. Idgham Shamsi (Solar): {} (ل + ز) ---",
-    //     verse_shamsi_2
-    // );
-    // for m in matches_shamsi_2 {
-    //     println!(
-    //         "Match: Alif-Lām + '{}' -> Rule: {} ({})",
-    //         m.following_letter, m.rule.arabic_name, m.rule.english_name
-    //     );
-    // }
-
-    // // --- II. Nūn Sākinah and Tanwīn Examples ---
-
-    // // 5. الإظهار الحلقي (Izhar Ḥalqī) - Clear Nūn/Tanwīn (Before throat letters ء ه ع ح غ خ)
-    // let verse_izhar_1 = "مِنْ هَادٍ";
-    // let matches_izhar_1 = processor.process_verse(verse_izhar_1);
-    // println!("\n--- 5. Izhar Ḥalqī: {} (ن + ه) ---", verse_izhar_1);
-    // for m in matches_izhar_1 {
-    //     println!(
-    //         "Match: Nūn/Tanwīn + '{}' -> Rule: {} ({})",
-    //         m.following_letter, m.rule.arabic_name, m.rule.english_name
-    //     );
-    // }
-
-    // // 6. الإظهار الحلقي (Izhar Ḥalqī) - Example 2 (Tanwīn)
-    // let verse_izhar_2 = "عَلِيمٌ حَكِيمٌ";
-    // let matches_izhar_2 = processor.process_verse(verse_izhar_2);
-    // println!("\n--- 6. Izhar Ḥalqī: {} (تنوين + ح) ---", verse_izhar_2);
-    // for m in matches_izhar_2 {
-    //     println!(
-    //         "Match: Nūn/Tanwīn + '{}' -> Rule: {} ({})",
-    //         m.following_letter, m.rule.arabic_name, m.rule.english_name
-    //     );
-    // }
-
-    // // 7. الإقلاب (Iqlab) - Conversion to Mīm (Before ب)
-    // let verse_iqlab_1 = "مِن بَعْدِ";
-    // let matches_iqlab_1 = processor.process_verse(verse_iqlab_1);
-    // println!("\n--- 7. Iqlab: {} (ن + ب) ---", verse_iqlab_1);
-    // for m in matches_iqlab_1 {
-    //     println!(
-    //         "Match: Nūn/Tanwīn + '{}' -> Rule: {} ({})",
-    //         m.following_letter, m.rule.arabic_name, m.rule.english_name
-    //     );
-    // }
-
-    // // 8. الإخفاء الحقيقي (Ikhfa' Ḥaqīqī) - Concealment (Before 15 Ikhfa' letters)
-    // let verse_ikhfa_1 = "أَنْفُسَكُمْ";
-    // let matches_ikhfa_1 = processor.process_verse(verse_ikhfa_1);
-    // println!("\n--- 8. Ikhfa' Ḥaqīqī: {} (ن + ف) ---", verse_ikhfa_1);
-    // for m in matches_ikhfa_1 {
-    //     println!(
-    //         "Match: Nūn/Tanwīn + '{}' -> Rule: {} ({})",
-    //         m.following_letter, m.rule.arabic_name, m.rule.english_name
-    //     );
-    // }
-
-    // // 9. الإدغام بغنة (Idgham bi-Ghunnah) - Merging with Nasalization (Before ي ن م و)
-    // let verse_idgham_g_1 = "مَنْ يَعْمَلْ";
-    // let matches_idgham_g_1 = processor.process_verse(verse_idgham_g_1);
-    // println!(
-    //     "\n--- 9. Idgham bi-Ghunnah: {} (ن + ي) ---",
-    //     verse_idgham_g_1
-    // );
-    // for m in matches_idgham_g_1 {
-    //     println!(
-    //         "Match: Nūn/Tanwīn + '{}' -> Rule: {} ({})",
-    //         m.following_letter, m.rule.arabic_name, m.rule.english_name
-    //     );
-    // }
-
-    // // 10. الإدغام بغير غنة (Idgham bi-Ghayr Ghunnah) - Merging without Nasalization (Before ل ر)
-    // let verse_idgham_bg_1 = "مِن لَّدُنْ";
-    // let matches_idgham_bg_1 = processor.process_verse(verse_idgham_bg_1);
-    // println!(
-    //     "\n--- 10. Idgham bi-Ghayr Ghunnah: {} (ن + ل) ---",
-    //     verse_idgham_bg_1
-    // );
-    // for m in matches_idgham_bg_1 {
-    //     println!(
-    //         "Match: Nūn/Tanwīn + '{}' -> Rule: {} ({})",
-    //         m.following_letter, m.rule.arabic_name, m.rule.english_name
-    //     );
-    // }
-
-    // // 11. الإدغام بغير غنة (Idgham bi-Ghayr Ghunnah) - Example 2 (Tanwīn)
-    // let verse_idgham_bg_2 = "غَفُورٌ رَحِيمٌ";
-    // let matches_idgham_bg_2 = processor.process_verse(verse_idgham_bg_2);
-    // println!(
-    //     "\n--- 11. Idgham bi-Ghayr Ghunnah: {} (تنوين + ر) ---",
-    //     verse_idgham_bg_2
-    // );
-    // for m in matches_idgham_bg_2 {
-    //     println!(
-    //         "Match: Nūn/Tanwīn + '{}' -> Rule: {} ({})",
-    //         m.following_letter, m.rule.arabic_name, m.rule.english_name
-    //     );
-    // }
-
-    // --- III. Mīm Sākinah Examples ---
-
-    // 12. الإخفاء الشفوي (Ikhfa' Shafawī) - Lip Concealment (Before ب)
-    let verse_ikhfa_sh_1 = "تَبَٰرَكَ اَ۬لذِے بِيَدِهِ اِ۬لْمُلْكُ وَهُوَ عَلَيٰ كُلِّ شَےْءٖ قَدِيرٌۖ";
-    let matches_ikhfa_sh_1 = processor.process_verse(verse_ikhfa_sh_1);
-    println!("\n--- 12. Ikhfa' Shafawī: {} (م + ب) ---", verse_ikhfa_sh_1);
-    for m in matches_ikhfa_sh_1 {
-        println!(
-            "Match: Mīm Sākinah + '{}' -> Rule: {} ({})",
-            m.following_letter, m.rule.arabic_name, m.rule.english_name
-        );
-    }
-
-    // // 13. الإدغام الشفوي (Idgham Shafawī) - Lip Merging (Before م)
-    // let verse_idgham_sh_1 = "لَكُمْ مَا";
-    // let matches_idgham_sh_1 = processor.process_verse(verse_idgham_sh_1);
-    // println!(
-    //     "\n--- 13. Idgham Shafawī: {} (م + م) ---",
-    //     verse_idgham_sh_1
-    // );
-    // for m in matches_idgham_sh_1 {
-    //     println!(
-    //         "Match: Mīm Sākinah + '{}' -> Rule: {} ({})",
-    //         m.following_letter, m.rule.arabic_name, m.rule.english_name
-    //     );
-    // }
-
-    // // 14. الإظهار الشفوي (Izhar Shafawī) - Lip Clear Pronunciation (Before all other letters)
-    // let verse_izhar_sh_1 = "أَلَمْ تَرَ";
-    // let matches_izhar_sh_1 = processor.process_verse(verse_izhar_sh_1);
-    // println!("\n--- 14. Izhar Shafawī: {} (م + ت) ---", verse_izhar_sh_1);
-    // for m in matches_izhar_sh_1 {
-    //     println!(
-    //         "Match: Mīm Sākinah + '{}' -> Rule: {} ({})",
-    //         m.following_letter, m.rule.arabic_name, m.rule.english_name
-    //     );
-    // }
 }
