@@ -16,7 +16,7 @@
 //! ## Quick Start
 //!
 //! ```rust
-//! use tajweed_warsh_rules::{TajweedProcessor, RecitationStyle};
+//! use tajweed_rules::{TajweedProcessor, RecitationStyle};
 //!
 //! let processor = TajweedProcessor::new(RecitationStyle::Warsh);
 //! let verse = "الحَمْدُ للهِ رَبِّ العالمين";
