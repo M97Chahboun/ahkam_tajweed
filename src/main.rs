@@ -18,15 +18,15 @@ pub enum TajweedRuleType {
     IzharMutlaq,
     IdghamBiGhunnah,
     IdghamBilaGhunnah,
-    IdghamNaqis,      // الإدغام الناقص (Warsh specific)
-    IdghamKamil,      // الإدغام الكامل (Warsh specific)
+    IdghamNaqis, // الإدغام الناقص (Warsh specific)
+    IdghamKamil, // الإدغام الكامل (Warsh specific)
     Iqlab,
     IkhfaaHaqiqi,
 
     // أحكام الميم الساكنة
     IkhfaaShafawi,
     IdghamShafawi,
-    IdghamMithlayn,   // إدغام المثلين (more specific)
+    IdghamMithlayn, // إدغام المثلين (more specific)
     IzharShafawi,
 
     // أحكام لام أل التعريف
@@ -34,21 +34,25 @@ pub enum TajweedRuleType {
     IdghamShamsi,
 
     // أحكام المدود (Enhanced for Warsh)
-    MaddTabeei,       // 2 حركات
-    MaddMuttasil,     // 4-5 حركات (Warsh: 4-6)
-    MaddMunfasil,     // 2-4-5 حركات (Warsh: 4-6)
-    MaddLazim,        // 6 حركات
-    MaddArid,         // 2-4-6 حركات
-    MaddLin,          // 2-4-6 حركات
-    MaddBadal,        // 2 حركات (Warsh: can be 4-6)
-    MaddSilah,        // صلة (Warsh specific variations)
+    MaddTabeei,   // 2 حركات
+    MaddMuttasil, // 4-5 حركات (Warsh: 4-6)
+    MaddMunfasil, // 2-4-5 حركات (Warsh: 4-6)
+    MaddLazim,    // 6 حركات
+    MaddArid,     // 2-4-6 حركات
+    MaddLin,      // 2-4-6 حركات
+    MaddBadal,    // 2 حركات (Warsh: can be 4-6)
+    MaddSilah,    // صلة (Warsh specific variations)
 
     // أحكام الراءات (Warsh specific)
-    TarqeeqRa,        // ترقيق الراء
-    TafkhimRa,        // تفخيم الراء
+    TarqeeqRa, // ترقيق الراء
+    TafkhimRa, // تفخيم الراء
 
     // أحكام اللامات (Warsh specific)
     TafkhimLafuljalala, // تفخيم لفظ الجلالة
+
+    // أحكام القلقلة (Qalqalah)
+    QalqalahKubra,  // القلقلة الكبرى (في الوقف)
+    QalqalahSughra, // القلقلة الصغرى (في الوصل)
 
     NoRule,
 }
@@ -215,6 +219,34 @@ impl TajweedRule {
                 warsh_specific: false,
                 madd_length_warsh: Some((6, 6)),
             },
+            TajweedRuleType::MaddArid => TajweedRule {
+                rule_type,
+                arabic_name: "المد العارض للسكون",
+                english_name: "Madd Arid",
+                description_ar: if style == RecitationStyle::Warsh {
+                    "المد العارض للسكون: 2 أو 4 أو 6 حركات (حرف المد في آخر الكلمة)"
+                } else {
+                    "المد العارض للسكون: 2 أو 4 أو 6 حركات"
+                },
+                warsh_specific: false,
+                madd_length_warsh: Some((2, 6)),
+            },
+            TajweedRuleType::MaddLin => TajweedRule {
+                rule_type,
+                arabic_name: "المد اللين",
+                english_name: "Madd Lin",
+                description_ar: "المد اللين: الواو أو الياء الساكنة بعد فتح (مثل: خيل، بيت)",
+                warsh_specific: false,
+                madd_length_warsh: Some((2, 6)),
+            },
+            TajweedRuleType::MaddSilah => TajweedRule {
+                rule_type,
+                arabic_name: "صلة الهاء",
+                english_name: "Madd Silah",
+                description_ar: "صلة الهاء الساكنة (تحويل ه الساكنة إلى حرف مد)",
+                warsh_specific: true,
+                madd_length_warsh: None,
+            },
             TajweedRuleType::TarqeeqRa => TajweedRule {
                 rule_type,
                 arabic_name: "ترقيق الراء",
@@ -239,6 +271,22 @@ impl TajweedRule {
                 warsh_specific: false,
                 madd_length_warsh: None,
             },
+            TajweedRuleType::QalqalahKubra => TajweedRule {
+                rule_type,
+                arabic_name: "القلقلة الكبرى",
+                english_name: "Qalqalah Kubra (Major)",
+                description_ar: "القلقلة الكبرى: رجع الصوت بالقاف أو الطاء أو الباء أو الجيم أو الدال عند الوقف.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::QalqalahSughra => TajweedRule {
+                rule_type,
+                arabic_name: "القلقلة الصغرى",
+                english_name: "Qalqalah Sughra (Minor)",
+                description_ar: "القلقلة الصغرى: رجع الصوت بأحد أحرف القلقلة في الوصل (غير متطرفة).",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
             _ => TajweedRule {
                 rule_type,
                 arabic_name: "لا يوجد حكم",
@@ -251,21 +299,33 @@ impl TajweedRule {
     }
 }
 
+// --- 3.5 Enhanced Madd Detection Helper ---
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MaddContext {
+    Muttasil, // Hamza in same word
+    Munfasil, // Hamza in next word
+    Tabeeii,  // Natural (no hamza)
+    Badal,    // Hamza at beginning, alif at beginning (both alif)
+    Lazim,    // Extended/prolonged letter (shadda)
+    Arid,     // Medium context
+    Lin,      // Lam or Ra with sukun
+}
+
 // --- 4. Enhanced Output Structure ---
 #[derive(Debug, Clone)]
 pub struct RuleMatch {
-    pub start_index: usize,      // Index of the letter where rule applies
-    pub end_index: usize,        // End index (for multi-character sequences)
-    pub target_letter: char,     // The main letter the rule applies to
+    pub start_index: usize,             // Index of the letter where rule applies
+    pub end_index: usize,               // End index (for multi-character sequences)
+    pub target_letter: char,            // The main letter the rule applies to
     pub following_letter: Option<char>, // The following letter (if relevant)
     pub rule: TajweedRule,
-    pub context: String,         // Surrounding context for clarity
+    pub context: String, // Surrounding context for clarity
 }
 
 // --- 5. Enhanced Tajweed Processor ---
 pub struct TajweedProcessor {
     style: RecitationStyle,
-    
+
     // Nūn Sākinah Maps
     izhar_halqi_map: HashMap<char, TajweedRuleType>,
     idgham_bi_ghunnah_map: HashMap<char, TajweedRuleType>,
@@ -283,22 +343,25 @@ pub struct TajweedProcessor {
 
     // Madd Letters
     madd_letters: Vec<char>,
+
+    // Qalqalah Letters
+    qalqalah_letters: Vec<char>,
 }
 
 impl TajweedProcessor {
     pub fn new(style: RecitationStyle) -> Self {
         // Izhar Halqi Letters (حروف الحلق)
         const IZHAR_HALQI_LETTERS: [char; 6] = ['أ', 'ه', 'ع', 'ح', 'غ', 'خ'];
-        
+
         // Idgham Letters
         const IDGHAM_BI_GHUNNAH_LETTERS: [char; 4] = ['ي', 'ن', 'م', 'و'];
         const IDGHAM_BILA_GHUNNAH_LETTERS: [char; 2] = ['ل', 'ر'];
-        
+
         // Ikhfaa Letters (15 letters)
         const IKHFAA_LETTERS: [char; 15] = [
             'ص', 'ذ', 'ث', 'ك', 'ج', 'ش', 'ق', 'س', 'د', 'ط', 'ز', 'ف', 'ت', 'ض', 'ظ',
         ];
-        
+
         const IQLAB_LETTER: char = 'ب';
         const IKHFAA_SHAFAWI_LETTER: char = 'ب';
         const IDGHAM_SHAFAWI_LETTER: char = 'م';
@@ -316,17 +379,20 @@ impl TajweedProcessor {
         // Madd Letters (حروف المد)
         const MADD_LETTERS: [char; 3] = ['ا', 'و', 'ي'];
 
+        // Qalqalah Letters (حروف القلقلة): ق ط ب ج د
+        const QALQALAH_LETTERS: [char; 5] = ['ق', 'ط', 'ب', 'ج', 'د'];
+
         // Build Maps
         let izhar_halqi_map = IZHAR_HALQI_LETTERS
             .iter()
             .map(|&l| (l, TajweedRuleType::IzharHalqi))
             .collect();
-        
+
         let idgham_bi_ghunnah_map = IDGHAM_BI_GHUNNAH_LETTERS
             .iter()
             .map(|&l| (l, TajweedRuleType::IdghamBiGhunnah))
             .collect();
-        
+
         let idgham_bila_ghunnah_map = IDGHAM_BILA_GHUNNAH_LETTERS
             .iter()
             .map(|&l| (l, TajweedRuleType::IdghamBilaGhunnah))
@@ -354,6 +420,7 @@ impl TajweedProcessor {
             izhar_qamari_map,
             idgham_shamsi_map,
             madd_letters: MADD_LETTERS.to_vec(),
+            qalqalah_letters: QALQALAH_LETTERS.to_vec(),
         }
     }
 
@@ -384,6 +451,39 @@ impl TajweedProcessor {
     /// Check if character is Shadda (شدة)
     fn is_shadda(c: char) -> bool {
         c == '\u{0651}'
+    }
+
+    /// Check if character is a vowel (fatha, damma, kasra)
+    fn is_vowel(c: char) -> bool {
+        matches!(c, '\u{064E}' | '\u{064C}' | '\u{0650}')
+    }
+
+    /// Get the vowel that precedes a character at given index (or immediately after in diacritics)
+    fn get_preceding_vowel(verse_chars: &[char], index: usize) -> Option<char> {
+        if index == 0 {
+            return None;
+        }
+
+        // First, check if there's a vowel immediately following the madd letter (in diacritics)
+        if index + 1 < verse_chars.len() && Self::is_vowel(verse_chars[index + 1]) {
+            return Some(verse_chars[index + 1]);
+        }
+
+        // If not, look backwards for the vowel before the letter
+        let mut idx = index - 1;
+        loop {
+            if Self::is_vowel(verse_chars[idx]) {
+                return Some(verse_chars[idx]);
+            }
+            if !Self::is_tajweed_ignorable(verse_chars[idx]) && verse_chars[idx] != '\u{0651}' {
+                return None;
+            }
+            if idx == 0 {
+                break;
+            }
+            idx -= 1;
+        }
+        None
     }
 
     /// Get context around a position
@@ -434,18 +534,20 @@ impl TajweedProcessor {
 
     /// Determine rule for Mīm Sākinah
     fn determine_rule_for_mim(&self, following_letter: char) -> TajweedRuleType {
-        // 1. Ikhfaa Shafawi (الإخفاء الشفوي)
+        // 1. Ikhfaa Shafawi (الإخفاء الشفوي) - before Ba
         if following_letter == self.ikhfaa_shafawi_letter {
             return TajweedRuleType::IkhfaaShafawi;
         }
 
-        // 2. Idgham Shafawi (الإدغام الشفوي)
+        // 2. Idgham Shafawi (الإدغام الشفوي) - before Mim
         if following_letter == self.idgham_shafawi_letter {
             return TajweedRuleType::IdghamMithlayn;
         }
 
-        // 3. Izhar Shafawi (الإظهار الشفوي)
-        if following_letter >= 'ا' && following_letter <= 'ي' {
+        // 3. Izhar Shafawi (الإظهار الشفوي) - before other letters
+        // Must be an actual Arabic letter
+        const ARABIC_LETTERS: &str = "ءأبةتثجحخدذرزسشصضطظعغفقكلمنهوي";
+        if ARABIC_LETTERS.contains(following_letter) {
             return TajweedRuleType::IzharShafawi;
         }
 
@@ -465,6 +567,303 @@ impl TajweedProcessor {
         }
 
         TajweedRuleType::NoRule
+    }
+
+    /// Check if character is a Hamza (همزة)
+    fn is_hamza(c: char) -> bool {
+        matches!(c, 'أ' | 'ؤ' | 'ئ' | 'ء')
+    }
+
+    /// Check if following letter after a madd letter is Hamza
+    fn is_following_hamza(verse_chars: &[char], start_idx: usize) -> bool {
+        let mut idx = start_idx;
+        while idx < verse_chars.len() && Self::is_tajweed_ignorable(verse_chars[idx]) {
+            idx += 1;
+        }
+        idx < verse_chars.len() && Self::is_hamza(verse_chars[idx])
+    }
+
+    /// Check if following letter after a madd letter is shadda (doubled)
+    fn is_following_shadda(verse_chars: &[char], start_idx: usize) -> bool {
+        let mut idx = start_idx;
+        while idx < verse_chars.len() {
+            let c = verse_chars[idx];
+            if Self::is_shadda(c) {
+                return true;
+            }
+            // Check if we hit a non-diacritic character (which would mean no shadda follows)
+            if !Self::is_tajweed_ignorable(c) && !Self::is_vowel(c) {
+                return false;
+            }
+            idx += 1;
+        }
+        false
+    }
+
+    /// Detect Madd rules for a madd letter
+    fn detect_madd(
+        &self,
+        madd_letter: char,
+        verse_chars: &[char],
+        current_index: usize,
+    ) -> Option<TajweedRuleType> {
+        // Check what follows the madd letter
+        let has_following_hamza = Self::is_following_hamza(verse_chars, current_index + 1);
+        let has_following_shadda = Self::is_following_shadda(verse_chars, current_index + 1);
+
+        // Check if it's at word end (for Munfasil detection)
+        let mut is_word_end = false;
+        let mut idx = current_index + 1;
+        while idx < verse_chars.len() && Self::is_tajweed_ignorable(verse_chars[idx]) {
+            if verse_chars[idx].is_whitespace() {
+                is_word_end = true;
+                break;
+            }
+            idx += 1;
+        }
+        if idx >= verse_chars.len() {
+            is_word_end = true;
+        }
+
+        // Determine Madd type based on what follows
+        if has_following_shadda {
+            // Madd Lazim (المد اللازم) - 6 harakaat always
+            Some(TajweedRuleType::MaddLazim)
+        } else if has_following_hamza {
+            // Either Muttasil or Munfasil based on word boundary
+            if is_word_end {
+                // Madd Munfasil (المد المنفصل) - hamza in next word
+                Some(TajweedRuleType::MaddMunfasil)
+            } else {
+                // Madd Muttasil (المد المتصل) - hamza in same word
+                Some(TajweedRuleType::MaddMuttasil)
+            }
+        } else if madd_letter == 'ي' || madd_letter == 'و' {
+            // Check for Madd Lin (المد اللين) - waaw/ya with sukun before Lam or Ra
+            let mut next_idx = current_index + 1;
+            while next_idx < verse_chars.len()
+                && Self::is_tajweed_ignorable(verse_chars[next_idx])
+                && !Self::is_sukun(verse_chars[next_idx])
+            {
+                next_idx += 1;
+            }
+
+            if next_idx < verse_chars.len() && Self::is_sukun(verse_chars[next_idx]) {
+                // Check next letter after sukun
+                let mut after_sukun_idx = next_idx + 1;
+                while after_sukun_idx < verse_chars.len()
+                    && Self::is_tajweed_ignorable(verse_chars[after_sukun_idx])
+                {
+                    after_sukun_idx += 1;
+                }
+
+                if after_sukun_idx < verse_chars.len() {
+                    let next_letter = verse_chars[after_sukun_idx];
+                    if next_letter == 'ل' || next_letter == 'ر' {
+                        return Some(TajweedRuleType::MaddLin);
+                    }
+                }
+            }
+
+            // Check for Madd Arid (المد العارض) - at word end with soft letters
+            if is_word_end {
+                return Some(TajweedRuleType::MaddArid);
+            }
+
+            // Default to natural madd
+            Some(TajweedRuleType::MaddTabeei)
+        } else {
+            // Alif
+            // Check for Madd Badal:
+            // 1. When Alif has Hamza before it (أ + ا = آ as one character)
+            // 2. Or when hamza comes before alif in sequence
+
+            // Check if current alif is actually آ (Alif with Madda)
+            // This is represented as a single Unicode character U+0622
+            if verse_chars[current_index] == 'آ' {
+                return Some(TajweedRuleType::MaddBadal);
+            }
+
+            // Check if regular ا follows a hamza
+            if current_index > 0 {
+                let mut back_idx = current_index - 1;
+                loop {
+                    if !Self::is_tajweed_ignorable(verse_chars[back_idx]) {
+                        if Self::is_hamza(verse_chars[back_idx]) {
+                            return Some(TajweedRuleType::MaddBadal);
+                        }
+                        break;
+                    }
+                    if back_idx == 0 {
+                        break;
+                    }
+                    back_idx -= 1;
+                }
+            }
+
+            // Check for Madd Arid if at word end
+            if is_word_end {
+                return Some(TajweedRuleType::MaddArid);
+            }
+
+            // Default to natural madd
+            Some(TajweedRuleType::MaddTabeei)
+        }
+    }
+
+    /// Detect Tafkhim Ra (تفخيم الراء - Ra Emphasis)
+    /// Ra is emphasized when preceded by fatha (َ), damma (ُ), or sukun after fatha/damma
+    fn detect_tafkhim_ra(verse_chars: &[char], current_index: usize) -> Option<TajweedRuleType> {
+        // Get the vowel preceding Ra
+        if let Some(vowel) = Self::get_preceding_vowel(&verse_chars, current_index) {
+            // Ra is emphasized with Fatha or Damma
+            match vowel {
+                '\u{064E}' | '\u{064C}' => return Some(TajweedRuleType::TafkhimRa), // Fatha or Damma
+                '\u{0652}' => {
+                    // If Ra has Sukun, check the vowel before the sukun
+                    // This handles cases like "رْ" after fatha/damma
+                    if current_index >= 2 {
+                        let mut back_idx = current_index - 1;
+                        while back_idx > 0 && Self::is_tajweed_ignorable(verse_chars[back_idx]) {
+                            back_idx -= 1;
+                        }
+                        if back_idx < current_index {
+                            if let Some(prev_vowel) =
+                                Self::get_preceding_vowel(&verse_chars, back_idx)
+                            {
+                                if matches!(prev_vowel, '\u{064E}' | '\u{064C}') {
+                                    return Some(TajweedRuleType::TafkhimRa);
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
+    /// Detect Tarqeeq Ra (ترقيق الراء - Ra Thinning)
+    /// Ra is thinned when preceded by kasra (ِ) or sukun after kasra (Warsh only)
+    fn detect_tarqeeq_ra(verse_chars: &[char], current_index: usize) -> Option<TajweedRuleType> {
+        // Get the vowel preceding Ra
+        if let Some(vowel) = Self::get_preceding_vowel(&verse_chars, current_index) {
+            match vowel {
+                '\u{0650}' => return Some(TajweedRuleType::TarqeeqRa), // Kasra
+                '\u{0652}' => {
+                    // If Ra has Sukun, check the vowel before the sukun
+                    if current_index >= 2 {
+                        let mut back_idx = current_index - 1;
+                        while back_idx > 0 && Self::is_tajweed_ignorable(verse_chars[back_idx]) {
+                            back_idx -= 1;
+                        }
+                        if back_idx < current_index {
+                            if let Some(prev_vowel) =
+                                Self::get_preceding_vowel(&verse_chars, back_idx)
+                            {
+                                if prev_vowel == '\u{0650}' {
+                                    return Some(TajweedRuleType::TarqeeqRa);
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
+    /// Detect Tafkhim Lafz Al-Jalala (تفخيم لفظ الجلالة - Allah Emphasis)
+    /// The word "الله" (Allah) is always emphasized in both Hafs and Warsh
+    fn detect_tafkhim_lafuljalala(verse_chars: &[char], current_index: usize) -> bool {
+        // Look for the sequence: ا (alif) followed by ل ل ه (lam, lam, ha)
+        if current_index + 3 >= verse_chars.len() {
+            return false;
+        }
+
+        // Current should be alif
+        if verse_chars[current_index] != 'ا' {
+            return false;
+        }
+
+        // Check next character is lam (allowing diacritics)
+        let mut check_idx = current_index + 1;
+        while check_idx < verse_chars.len() && Self::is_tajweed_ignorable(verse_chars[check_idx]) {
+            check_idx += 1;
+        }
+
+        if check_idx >= verse_chars.len() || verse_chars[check_idx] != 'ل' {
+            return false;
+        }
+
+        // Check next character is also lam or ha
+        let mut check_idx = check_idx + 1;
+        while check_idx < verse_chars.len() && Self::is_tajweed_ignorable(verse_chars[check_idx]) {
+            check_idx += 1;
+        }
+
+        if check_idx >= verse_chars.len() {
+            return false;
+        }
+
+        // Could be second lam or ha directly
+        if verse_chars[check_idx] == 'ل' {
+            // Find ha after second lam
+            check_idx += 1;
+            while check_idx < verse_chars.len()
+                && Self::is_tajweed_ignorable(verse_chars[check_idx])
+            {
+                check_idx += 1;
+            }
+            if check_idx < verse_chars.len() && verse_chars[check_idx] == 'ه' {
+                return true;
+            }
+        } else if verse_chars[check_idx] == 'ه' {
+            // Ha directly after first lam (less common but valid)
+            return true;
+        }
+
+        false
+    }
+
+    /// Detect Qalqalah rules for qalqalah letters
+    fn detect_qalqalah(verse_chars: &[char], current_index: usize) -> Option<TajweedRuleType> {
+        // Check if the qalqalah letter has sukun (سكون)
+        let mut has_sukun = false;
+        let mut sukun_idx = current_index + 1;
+
+        while sukun_idx < verse_chars.len() && Self::is_tajweed_ignorable(verse_chars[sukun_idx]) {
+            if Self::is_sukun(verse_chars[sukun_idx]) {
+                has_sukun = true;
+                break;
+            }
+            sukun_idx += 1;
+        }
+
+        if !has_sukun {
+            return None; // No qalqalah without sukun
+        }
+        // Check if it's at the end of word/verse (Qalqalah Kubra)
+        let mut is_at_end = false;
+        let mut end_idx = sukun_idx + 1;
+        while end_idx < verse_chars.len() && Self::is_tajweed_ignorable(verse_chars[end_idx]) {
+            if verse_chars[end_idx].is_whitespace() {
+                is_at_end = true;
+                break;
+            }
+            end_idx += 1;
+        }
+        if end_idx >= verse_chars.len() {
+            is_at_end = true;
+        }
+
+        if is_at_end {
+            Some(TajweedRuleType::QalqalahKubra)
+        } else {
+            Some(TajweedRuleType::QalqalahSughra)
+        }
     }
 
     /// Main processing function
@@ -530,13 +929,58 @@ impl TajweedProcessor {
                 }
             }
 
+            // Handle Tanwin (تنوين) as if it were a Noon Sakinah
+            if Self::is_tanwin(current_char) {
+                // Find the base letter (the letter which carries the tanwin)
+                let mut base_idx_opt: Option<usize> = None;
+                let mut k = i;
+                while k > 0 {
+                    k -= 1;
+                    if !Self::is_tajweed_ignorable(verse_chars[k]) {
+                        base_idx_opt = Some(k);
+                        break;
+                    }
+                }
+
+                if let Some(base_idx) = base_idx_opt {
+                    // Look ahead for the next meaningful letter
+                    let mut next_char_index = i + 1;
+                    while next_char_index < verse_chars.len()
+                        && Self::is_tajweed_ignorable(verse_chars[next_char_index])
+                    {
+                        next_char_index += 1;
+                    }
+
+                    if next_char_index < verse_chars.len() {
+                        let following_letter = verse_chars[next_char_index];
+                        let is_same_word = !verse_chars[base_idx..next_char_index]
+                            .iter()
+                            .any(|&c| c.is_whitespace());
+
+                        let rule_type =
+                            self.determine_rule_for_noon(following_letter, is_same_word);
+
+                        if rule_type != TajweedRuleType::NoRule {
+                            matches.push(RuleMatch {
+                                start_index: base_idx,
+                                end_index: i,
+                                target_letter: 'ن',
+                                following_letter: Some(following_letter),
+                                rule: TajweedRule::from_type(rule_type, self.style),
+                                context: Self::get_context(&verse_chars, base_idx, 3),
+                            });
+                        }
+                    }
+                }
+            }
+
             // Check for Lām Al-Ta'rīf (ال)
             if current_char == 'ا' && i + 1 < verse_chars.len() {
                 let mut next_idx = i + 1;
-                
+
                 // Skip diacritics
-                while next_idx < verse_chars.len() 
-                    && Self::is_tajweed_ignorable(verse_chars[next_idx]) 
+                while next_idx < verse_chars.len()
+                    && Self::is_tajweed_ignorable(verse_chars[next_idx])
                 {
                     next_idx += 1;
                 }
@@ -571,6 +1015,132 @@ impl TajweedProcessor {
             i += 1;
         }
 
+        // Second pass: Detect Madd rules (المد)
+        let mut i = 0;
+        while i < verse_chars.len() {
+            let current_char = verse_chars[i];
+
+            // Check if current character is a madd letter (including آ for Badal)
+            if self.madd_letters.contains(&current_char) || current_char == 'آ' {
+                // Check if it has correct vowel before it
+                let has_correct_vowel = if current_char == 'آ' {
+                    // آ is Alif with Madda, always considered a Madd case
+                    true
+                } else if let Some(vowel) = Self::get_preceding_vowel(&verse_chars, i) {
+                    match current_char {
+                        'ا' => vowel == '\u{064E}', // Alif needs Fatha
+                        'و' => vowel == '\u{064C}', // Waaw needs Damma
+                        'ي' => vowel == '\u{0650}', // Ya needs Kasra
+                        _ => false,
+                    }
+                } else {
+                    false
+                };
+
+                if has_correct_vowel || current_char == 'آ' {
+                    if let Some(madd_type) = self.detect_madd(current_char, &verse_chars, i) {
+                        matches.push(RuleMatch {
+                            start_index: i,
+                            end_index: i,
+                            target_letter: current_char,
+                            following_letter: None,
+                            rule: TajweedRule::from_type(madd_type, self.style),
+                            context: Self::get_context(&verse_chars, i, 3),
+                        });
+                    }
+                }
+            }
+
+            i += 1;
+        }
+
+        // Third pass: Detect Qalqalah rules (القلقلة)
+        let mut i = 0;
+        while i < verse_chars.len() {
+            let current_char = verse_chars[i];
+
+            // Check if current character is a qalqalah letter
+            if self.qalqalah_letters.contains(&current_char) {
+                if let Some(qalqalah_type) = Self::detect_qalqalah(&verse_chars, i) {
+                    matches.push(RuleMatch {
+                        start_index: i,
+                        end_index: i,
+                        target_letter: current_char,
+                        following_letter: None,
+                        rule: TajweedRule::from_type(qalqalah_type, self.style),
+                        context: Self::get_context(&verse_chars, i, 3),
+                    });
+                }
+            }
+
+            i += 1;
+        }
+
+        // Fourth pass: Detect Ra emphasis rules (أحكام الراء)
+        let mut i = 0;
+        while i < verse_chars.len() {
+            let current_char = verse_chars[i];
+
+            if current_char == 'ر' {
+                // Check for Tarqeeq Ra first (higher priority for Warsh)
+                if self.style == RecitationStyle::Warsh {
+                    if let Some(tarqeeq_type) = Self::detect_tarqeeq_ra(&verse_chars, i) {
+                        matches.push(RuleMatch {
+                            start_index: i,
+                            end_index: i,
+                            target_letter: current_char,
+                            following_letter: None,
+                            rule: TajweedRule::from_type(tarqeeq_type, self.style),
+                            context: Self::get_context(&verse_chars, i, 3),
+                        });
+                        i += 1;
+                        continue;
+                    }
+                }
+
+                // Check for Tafkhim Ra
+                if let Some(tafkhim_type) = Self::detect_tafkhim_ra(&verse_chars, i) {
+                    matches.push(RuleMatch {
+                        start_index: i,
+                        end_index: i,
+                        target_letter: current_char,
+                        following_letter: None,
+                        rule: TajweedRule::from_type(tafkhim_type, self.style),
+                        context: Self::get_context(&verse_chars, i, 3),
+                    });
+                }
+            }
+
+            i += 1;
+        }
+
+        // Fifth pass: Detect Tafkhim Lafz Al-Jalala (تفخيم لفظ الجلالة)
+        let mut i = 0;
+        while i < verse_chars.len() {
+            let current_char = verse_chars[i];
+
+            if current_char == 'ا' {
+                if Self::detect_tafkhim_lafuljalala(&verse_chars, i) {
+                    matches.push(RuleMatch {
+                        start_index: i,
+                        end_index: i,
+                        target_letter: current_char,
+                        following_letter: None,
+                        rule: TajweedRule::from_type(
+                            TajweedRuleType::TafkhimLafuljalala,
+                            self.style,
+                        ),
+                        context: Self::get_context(&verse_chars, i, 3),
+                    });
+                    // Skip ahead to avoid duplicate matches
+                    i += 3;
+                    continue;
+                }
+            }
+
+            i += 1;
+        }
+
         matches
     }
 
@@ -583,18 +1153,17 @@ impl TajweedProcessor {
 // --- 6. Main Function with Comprehensive Examples ---
 fn main() {
     println!("=======================================================");
-    println!("  Enhanced Tajweed Processor - Warsh Recitation");
+    println!("  Tajweed Processor - Interactive CLI");
     println!("=======================================================\n");
 
-    // Create processors for both styles
     let processor_warsh = TajweedProcessor::new(RecitationStyle::Warsh);
     let processor_hafs = TajweedProcessor::new(RecitationStyle::Hafs);
 
-    // Helper function to display results
+    // Reusable display helper (moved out for interactive use)
     fn display_results(verse: &str, matches: Vec<RuleMatch>, style_name: &str) {
         println!("Verse: {}", verse);
         println!("Style: {}\n", style_name);
-        
+
         if matches.is_empty() {
             println!("  No Tajweed rules detected.\n");
             return;
@@ -622,271 +1191,82 @@ fn main() {
         println!("{}\n", "=".repeat(55));
     }
 
-    // ========== SECTION 1: Basmalah Analysis ==========
-    println!("\n📖 SECTION 1: BASMALAH (بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ)");
-    println!("{}", "=".repeat(55));
-    let basmalah = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
-    let matches_basmalah_warsh = processor_warsh.process_verse(basmalah);
-    display_results(basmalah, matches_basmalah_warsh, "Warsh");
+    use std::io::{self, Write};
 
-    // ========== SECTION 2: Izhar Halqi Examples ==========
-    println!("\n📖 SECTION 2: IZHAR HALQI (الإظهار الحلقي)");
-    println!("{}", "=".repeat(55));
-    
-    let verse_izhar_1 = "مِنْ هَادٍ";
-    println!("Example 1: Noon Sakinah + Ha (ن + ه)");
-    let matches_izhar_1 = processor_warsh.process_verse(verse_izhar_1);
-    display_results(verse_izhar_1, matches_izhar_1, "Warsh");
+    enum SelectedStyle {
+        Warsh,
+        Hafs,
+        Both,
+    }
 
-    let verse_izhar_2 = "يَنْأَوْنَ";
-    println!("Example 2: Noon Sakinah + Hamza (ن + أ)");
-    let matches_izhar_2 = processor_warsh.process_verse(verse_izhar_2);
-    display_results(verse_izhar_2, matches_izhar_2, "Warsh");
+    let mut selected = SelectedStyle::Both;
 
-    let verse_izhar_3 = "مَنْ عَمِلَ";
-    println!("Example 3: Noon Sakinah + Ayn (ن + ع)");
-    let matches_izhar_3 = processor_warsh.process_verse(verse_izhar_3);
-    display_results(verse_izhar_3, matches_izhar_3, "Warsh");
+    println!("Interactive mode: enter a verse and press Enter to analyze.");
+    println!("Commands: :q or q to quit, :style warsh|hafs|both to switch styles\n");
 
-    let verse_izhar_4 = "عَلِيمٌ حَكِيمٌ";
-    println!("Example 4: Tanwin + Ha (تنوين + ح)");
-    let matches_izhar_4 = processor_warsh.process_verse(verse_izhar_4);
-    display_results(verse_izhar_4, matches_izhar_4, "Warsh");
+    loop {
+        print!("> ");
+        io::stdout().flush().unwrap();
 
-    // ========== SECTION 3: Iqlab Examples ==========
-    println!("\n📖 SECTION 3: IQLAB (الإقلاب)");
-    println!("{}", "=".repeat(55));
-    
-    let verse_iqlab_1 = "مِنْ بَعْدِ";
-    println!("Example 1: Noon Sakinah + Ba (ن + ب)");
-    let matches_iqlab_1 = processor_warsh.process_verse(verse_iqlab_1);
-    display_results(verse_iqlab_1, matches_iqlab_1, "Warsh");
+        let mut input = String::new();
+        if io::stdin().read_line(&mut input).is_err() {
+            println!("Error reading input. Exiting.");
+            break;
+        }
 
-    let verse_iqlab_2 = "سَمِيعٌ بَصِيرٌ";
-    println!("Example 2: Tanwin + Ba (تنوين + ب)");
-    let matches_iqlab_2 = processor_warsh.process_verse(verse_iqlab_2);
-    display_results(verse_iqlab_2, matches_iqlab_2, "Warsh");
+        let input = input.trim();
+        if input.is_empty() {
+            continue;
+        }
 
-    let verse_iqlab_3 = "أَنْبِئْهُمْ";
-    println!("Example 3: Noon Sakinah + Ba in same word (ن + ب)");
-    let matches_iqlab_3 = processor_warsh.process_verse(verse_iqlab_3);
-    display_results(verse_iqlab_3, matches_iqlab_3, "Warsh");
+        if input == "q" || input == ":q" || input == "quit" {
+            println!("Goodbye.");
+            break;
+        }
 
-    // ========== SECTION 4: Idgham bi Ghunnah Examples ==========
-    println!("\n📖 SECTION 4: IDGHAM BI GHUNNAH (الإدغام بغنة)");
-    println!("{}", "=".repeat(55));
-    
-    let verse_idgham_g_1 = "مَنْ يَعْمَلْ";
-    println!("Example 1: Noon Sakinah + Ya (ن + ي)");
-    let matches_idgham_g_1 = processor_warsh.process_verse(verse_idgham_g_1);
-    display_results(verse_idgham_g_1, matches_idgham_g_1, "Warsh");
+        if input.starts_with(":style") {
+            let parts: Vec<&str> = input.split_whitespace().collect();
+            if parts.len() >= 2 {
+                match parts[1].to_lowercase().as_str() {
+                    "warsh" => {
+                        selected = SelectedStyle::Warsh;
+                        println!("Style set to Warsh.");
+                    }
+                    "hafs" => {
+                        selected = SelectedStyle::Hafs;
+                        println!("Style set to Hafs.");
+                    }
+                    "both" => {
+                        selected = SelectedStyle::Both;
+                        println!("Style set to Both.");
+                    }
+                    _ => println!("Unknown style. Use warsh, hafs, or both."),
+                }
+            } else {
+                println!("Usage: :style warsh|hafs|both");
+            }
 
-    let verse_idgham_g_2 = "مِنْ نِعْمَةٍ";
-    println!("Example 2: Noon Sakinah + Noon (ن + ن)");
-    let matches_idgham_g_2 = processor_warsh.process_verse(verse_idgham_g_2);
-    display_results(verse_idgham_g_2, matches_idgham_g_2, "Warsh");
+            continue;
+        }
 
-    let verse_idgham_g_3 = "مِنْ مَالٍ";
-    println!("Example 3: Noon Sakinah + Meem (ن + م)");
-    let matches_idgham_g_3 = processor_warsh.process_verse(verse_idgham_g_3);
-    display_results(verse_idgham_g_3, matches_idgham_g_3, "Warsh");
+        match selected {
+            SelectedStyle::Warsh => {
+                let matches = processor_warsh.process_verse(input);
+                display_results(input, matches, "Warsh");
+            }
+            SelectedStyle::Hafs => {
+                let matches = processor_hafs.process_verse(input);
+                display_results(input, matches, "Hafs");
+            }
+            SelectedStyle::Both => {
+                println!("--- WARSH ---");
+                let matches_w = processor_warsh.process_verse(input);
+                display_results(input, matches_w, "Warsh");
 
-    let verse_idgham_g_4 = "مَنْ وَجَدَ";
-    println!("Example 4: Noon Sakinah + Waw (ن + و)");
-    let matches_idgham_g_4 = processor_warsh.process_verse(verse_idgham_g_4);
-    display_results(verse_idgham_g_4, matches_idgham_g_4, "Warsh");
-
-    let verse_idgham_g_5 = "هُدًى وَرَحْمَةً";
-    println!("Example 5: Tanwin + Waw (تنوين + و)");
-    let matches_idgham_g_5 = processor_warsh.process_verse(verse_idgham_g_5);
-    display_results(verse_idgham_g_5, matches_idgham_g_5, "Warsh");
-
-    // ========== SECTION 5: Idgham bila Ghunnah Examples ==========
-    println!("\n📖 SECTION 5: IDGHAM BILA GHUNNAH (الإدغام بغير غنة)");
-    println!("{}", "=".repeat(55));
-    
-    let verse_idgham_bg_1 = "مِنْ لَدُنْ";
-    println!("Example 1: Noon Sakinah + Lam (ن + ل)");
-    let matches_idgham_bg_1 = processor_warsh.process_verse(verse_idgham_bg_1);
-    display_results(verse_idgham_bg_1, matches_idgham_bg_1, "Warsh");
-
-    let verse_idgham_bg_2 = "مَنْ رَبُّهُ";
-    println!("Example 2: Noon Sakinah + Ra (ن + ر)");
-    let matches_idgham_bg_2 = processor_warsh.process_verse(verse_idgham_bg_2);
-    display_results(verse_idgham_bg_2, matches_idgham_bg_2, "Warsh");
-
-    let verse_idgham_bg_3 = "غَفُورٌ رَحِيمٌ";
-    println!("Example 3: Tanwin + Ra (تنوين + ر)");
-    let matches_idgham_bg_3 = processor_warsh.process_verse(verse_idgham_bg_3);
-    display_results(verse_idgham_bg_3, matches_idgham_bg_3, "Warsh");
-
-    let verse_idgham_bg_4 = "هُدًى لِلْمُتَّقِينَ";
-    println!("Example 4: Tanwin + Lam (تنوين + ل)");
-    let matches_idgham_bg_4 = processor_warsh.process_verse(verse_idgham_bg_4);
-    display_results(verse_idgham_bg_4, matches_idgham_bg_4, "Warsh");
-
-    // ========== SECTION 6: Ikhfaa Haqiqi Examples ==========
-    println!("\n📖 SECTION 6: IKHFAA HAQIQI (الإخفاء الحقيقي)");
-    println!("{}", "=".repeat(55));
-    
-    let verse_ikhfaa_1 = "أَنْفُسَكُمْ";
-    println!("Example 1: Noon Sakinah + Fa (ن + ف)");
-    let matches_ikhfaa_1 = processor_warsh.process_verse(verse_ikhfaa_1);
-    display_results(verse_ikhfaa_1, matches_ikhfaa_1, "Warsh");
-
-    let verse_ikhfaa_2 = "مَنْ صَدَّ";
-    println!("Example 2: Noon Sakinah + Sad (ن + ص)");
-    let matches_ikhfaa_2 = processor_warsh.process_verse(verse_ikhfaa_2);
-    display_results(verse_ikhfaa_2, matches_ikhfaa_2, "Warsh");
-
-    let verse_ikhfaa_3 = "أَنْزَلْنَا";
-    println!("Example 3: Noon Sakinah + Zay (ن + ز)");
-    let matches_ikhfaa_3 = processor_warsh.process_verse(verse_ikhfaa_3);
-    display_results(verse_ikhfaa_3, matches_ikhfaa_3, "Warsh");
-
-    let verse_ikhfaa_4 = "وَجْنَةٍ مِنْ قِطْمِيرٍ";
-    println!("Example 4: Noon Sakinah + Qaf (ن + ق)");
-    let matches_ikhfaa_4 = processor_warsh.process_verse(verse_ikhfaa_4);
-    display_results(verse_ikhfaa_4, matches_ikhfaa_4, "Warsh");
-
-    let verse_ikhfaa_5 = "يَوْمَئِذٍ تُحَدِّثُ";
-    println!("Example 5: Tanwin + Ta (تنوين + ت)");
-    let matches_ikhfaa_5 = processor_warsh.process_verse(verse_ikhfaa_5);
-    display_results(verse_ikhfaa_5, matches_ikhfaa_5, "Warsh");
-
-    // ========== SECTION 7: Meem Sakinah - Ikhfaa Shafawi ==========
-    println!("\n📖 SECTION 7: IKHFAA SHAFAWI (الإخفاء الشفوي)");
-    println!("{}", "=".repeat(55));
-    
-    let verse_ikhfaa_sh_1 = "تَرْمِيهِمْ بِحِجَارَةٍ";
-    println!("Example 1: Meem Sakinah + Ba (م + ب)");
-    let matches_ikhfaa_sh_1 = processor_warsh.process_verse(verse_ikhfaa_sh_1);
-    display_results(verse_ikhfaa_sh_1, matches_ikhfaa_sh_1, "Warsh");
-
-    let verse_ikhfaa_sh_2 = "وَهُمْ بِالْآخِرَةِ";
-    println!("Example 2: Meem Sakinah + Ba (م + ب)");
-    let matches_ikhfaa_sh_2 = processor_warsh.process_verse(verse_ikhfaa_sh_2);
-    display_results(verse_ikhfaa_sh_2, matches_ikhfaa_sh_2, "Warsh");
-
-    // ========== SECTION 8: Meem Sakinah - Idgham Shafawi ==========
-    println!("\n📖 SECTION 8: IDGHAM SHAFAWI (الإدغام الشفوي)");
-    println!("{}", "=".repeat(55));
-    
-    let verse_idgham_sh_1 = "لَكُمْ مَا";
-    println!("Example 1: Meem Sakinah + Meem (م + م)");
-    let matches_idgham_sh_1 = processor_warsh.process_verse(verse_idgham_sh_1);
-    display_results(verse_idgham_sh_1, matches_idgham_sh_1, "Warsh");
-
-    let verse_idgham_sh_2 = "عَلَيْهِمْ مَا";
-    println!("Example 2: Meem Sakinah + Meem (م + م)");
-    let matches_idgham_sh_2 = processor_warsh.process_verse(verse_idgham_sh_2);
-    display_results(verse_idgham_sh_2, matches_idgham_sh_2, "Warsh");
-
-    // ========== SECTION 9: Meem Sakinah - Izhar Shafawi ==========
-    println!("\n📖 SECTION 9: IZHAR SHAFAWI (الإظهار الشفوي)");
-    println!("{}", "=".repeat(55));
-    
-    let verse_izhar_sh_1 = "أَلَمْ تَرَ";
-    println!("Example 1: Meem Sakinah + Ta (م + ت)");
-    let matches_izhar_sh_1 = processor_warsh.process_verse(verse_izhar_sh_1);
-    display_results(verse_izhar_sh_1, matches_izhar_sh_1, "Warsh");
-
-    let verse_izhar_sh_2 = "وَهُمْ فِيهَا";
-    println!("Example 2: Meem Sakinah + Fa (م + ف)");
-    let matches_izhar_sh_2 = processor_warsh.process_verse(verse_izhar_sh_2);
-    display_results(verse_izhar_sh_2, matches_izhar_sh_2, "Warsh");
-
-    let verse_izhar_sh_3 = "عَلَيْكُمْ وَلَا";
-    println!("Example 3: Meem Sakinah + Waw (م + و)");
-    let matches_izhar_sh_3 = processor_warsh.process_verse(verse_izhar_sh_3);
-    display_results(verse_izhar_sh_3, matches_izhar_sh_3, "Warsh");
-
-    // ========== SECTION 10: Lam Al-Ta'rif - Izhar Qamari ==========
-    println!("\n📖 SECTION 10: IZHAR QAMARI (الإظهار القمري)");
-    println!("{}", "=".repeat(55));
-    
-    let verse_qamari_1 = "الْقَمَرُ";
-    println!("Example 1: Alif-Lam + Qaf (ال + ق)");
-    let matches_qamari_1 = processor_warsh.process_verse(verse_qamari_1);
-    display_results(verse_qamari_1, matches_qamari_1, "Warsh");
-
-    let verse_qamari_2 = "الْكِتَابُ";
-    println!("Example 2: Alif-Lam + Kaf (ال + ك)");
-    let matches_qamari_2 = processor_warsh.process_verse(verse_qamari_2);
-    display_results(verse_qamari_2, matches_qamari_2, "Warsh");
-
-    let verse_qamari_3 = "الْمَلَائِكَةِ";
-    println!("Example 3: Alif-Lam + Meem (ال + م)");
-    let matches_qamari_3 = processor_warsh.process_verse(verse_qamari_3);
-    display_results(verse_qamari_3, matches_qamari_3, "Warsh");
-
-    let verse_qamari_4 = "الْبَيْتِ الْحَرَامِ";
-    println!("Example 4: Multiple Alif-Lam (ال + ب) and (ال + ح)");
-    let matches_qamari_4 = processor_warsh.process_verse(verse_qamari_4);
-    display_results(verse_qamari_4, matches_qamari_4, "Warsh");
-
-    // ========== SECTION 11: Lam Al-Ta'rif - Idgham Shamsi ==========
-    println!("\n📖 SECTION 11: IDGHAM SHAMSI (الإدغام الشمسي)");
-    println!("{}", "=".repeat(55));
-    
-    let verse_shamsi_1 = "الشَّمْسُ";
-    println!("Example 1: Alif-Lam + Sheen (ال + ش)");
-    let matches_shamsi_1 = processor_warsh.process_verse(verse_shamsi_1);
-    display_results(verse_shamsi_1, matches_shamsi_1, "Warsh");
-
-    let verse_shamsi_2 = "الرَّحْمَٰنِ";
-    println!("Example 2: Alif-Lam + Ra (ال + ر)");
-    let matches_shamsi_2 = processor_warsh.process_verse(verse_shamsi_2);
-    display_results(verse_shamsi_2, matches_shamsi_2, "Warsh");
-
-    let verse_shamsi_3 = "الصَّلَاةَ";
-    println!("Example 3: Alif-Lam + Sad (ال + ص)");
-    let matches_shamsi_3 = processor_warsh.process_verse(verse_shamsi_3);
-    display_results(verse_shamsi_3, matches_shamsi_3, "Warsh");
-
-    let verse_shamsi_4 = "الطَّيِّبَاتِ";
-    println!("Example 4: Alif-Lam + Ta (ال + ط)");
-    let matches_shamsi_4 = processor_warsh.process_verse(verse_shamsi_4);
-    display_results(verse_shamsi_4, matches_shamsi_4, "Warsh");
-
-    let verse_shamsi_5 = "النَّاسِ";
-    println!("Example 5: Alif-Lam + Noon (ال + ن)");
-    let matches_shamsi_5 = processor_warsh.process_verse(verse_shamsi_5);
-    display_results(verse_shamsi_5, matches_shamsi_5, "Warsh");
-
-    // ========== SECTION 12: Complex Verses with Multiple Rules ==========
-    println!("\n📖 SECTION 12: COMPLEX VERSES (Multiple Rules)");
-    println!("{}", "=".repeat(55));
-    
-    let verse_complex_1 = "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ";
-    println!("Example 1: Al-Fatiha Verse 2");
-    let matches_complex_1 = processor_warsh.process_verse(verse_complex_1);
-    display_results(verse_complex_1, matches_complex_1, "Warsh");
-
-    let verse_complex_2 = "وَمِنْ شَرِّ غَاسِقٍ إِذَا وَقَبَ";
-    println!("Example 2: Surah Al-Falaq");
-    let matches_complex_2 = processor_warsh.process_verse(verse_complex_2);
-    display_results(verse_complex_2, matches_complex_2, "Warsh");
-
-    let verse_complex_3 = "إِنَّا أَنْزَلْنَاهُ فِي لَيْلَةِ الْقَدْرِ";
-    println!("Example 3: Surah Al-Qadr");
-    let matches_complex_3 = processor_warsh.process_verse(verse_complex_3);
-    display_results(verse_complex_3, matches_complex_3, "Warsh");
-
-    // ========== SECTION 13: Warsh vs Hafs Comparison ==========
-    println!("\n📖 SECTION 13: WARSH vs HAFS COMPARISON");
-    println!("{}", "=".repeat(55));
-    
-    let verse_comparison = "مِنْ شَيْءٍ قَدِيرٌ";
-    println!("Comparing same verse in both recitations:");
-    println!("\n--- WARSH ---");
-    let matches_warsh = processor_warsh.process_verse(verse_comparison);
-    display_results(verse_comparison, matches_warsh, "Warsh");
-    
-    println!("--- HAFS ---");
-    let matches_hafs = processor_hafs.process_verse(verse_comparison);
-    display_results(verse_comparison, matches_hafs, "Hafs");
-
-    println!("\n✅ Analysis Complete!");
-    println!("Total Examples: 50+ Tajweed Rules Demonstrated");
+                println!("--- HAFS ---");
+                let matches_h = processor_hafs.process_verse(input);
+                display_results(input, matches_h, "Hafs");
+            }
+        }
+    }
 }
