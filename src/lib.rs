@@ -83,6 +83,7 @@
 //! - Hamza simplification (Madd Badal with extended lengths)
 
 pub mod processor;
+pub mod rules;
 pub mod types;
 pub mod utils;
 

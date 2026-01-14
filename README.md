@@ -230,12 +230,30 @@ cargo build --release
 
 ```
 src/
-├── lib.rs           # Library root
-├── main.rs          # CLI application
-├── types.rs         # Core types and structures
-├── processor.rs     # Main rule detection logic
-└── utils.rs         # Utility functions
+├── lib.rs                      # Library root and public API
+├── main.rs                     # Interactive CLI application
+├── types.rs                    # Core types and enumerations
+├── processor.rs                # Main processor orchestrating rule detection
+├── utils.rs                    # Utility functions for Arabic characters
+└── rules/                      # Modular rule detection modules
+    ├── mod.rs                  # Rules module root
+    ├── noon_mim.rs             # Noon/Mim Sakinah and Tanwin rules (11 rules)
+    ├── lam_al_tarif.rs         # Lam Al-Ta'rif (definite article) rules (2 rules)
+    ├── madd.rs                 # Madd (vowel prolongation) rules (8 rules)
+    ├── qalqalah.rs             # Qalqalah (bouncing) rules (2 rules)
+    └── ra.rs                   # Ra emphasis and Allah name emphasis rules (3 rules)
 ```
+
+### Module Descriptions
+
+- **types.rs** (222 lines): Defines `TajweedRule`, `RuleMatch`, `RecitationStyle`, and `TajweedRuleType` enum with 30+ rule variants
+- **utils.rs** (162 lines): Arabic character utilities including diacritic handling, vowel detection, and context extraction
+- **processor.rs** (75 lines): Clean orchestrator that coordinates the 6-pass rule detection algorithm
+- **rules/noon_mim.rs** (300 lines): Detects Noon/Mim/Tanwin rules with comprehensive letter mapping logic
+- **rules/lam_al_tarif.rs** (95 lines): Identifies Lunar (Izhar Qamari) and Solar (Idgham Shamsi) letters
+- **rules/madd.rs** (130 lines): Handles 8 Madd variants with proper shadda and hamza detection
+- **rules/qalqalah.rs** (45 lines): Detects Qalqalah Kubra and Sughra based on sukun placement
+- **rules/ra.rs** (130 lines): Processes Ra emphasis rules with Warsh-specific Tarqeeq detection
 
 ## Contributing
 
