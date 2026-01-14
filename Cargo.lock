@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "tajweed_warsh_rules"
-version = "0.1.0"
+name = "tajweed_rules"
+version = "0.2.0"

@@ -1,0 +1,391 @@
+//! Core types and structures for Tajweed rule processing
+//!
+//! This module defines the fundamental types used throughout the tajweed processor,
+//! including recitation styles, rule types, and data structures for rule matching.
+
+/// Represents different Quranic recitation styles
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecitationStyle {
+    /// حفص عن عاصم - Hafs narration
+    Hafs,
+    /// ورش عن نافع - Warsh narration
+    Warsh,
+}
+
+/// Enumeration of all supported Tajweed rules
+///
+/// This comprehensive enum covers rules for:
+/// - Noon/Mim Sakinah (أحكام النون الساكنة والتنوين / أحكام الميم الساكنة)
+/// - Lam Al-Ta'rif (أحكام لام أل التعريف)
+/// - Madd rules (أحكام المدود)
+/// - Qalqalah (القلقلة)
+/// - Special Warsh-specific rules
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TajweedRuleType {
+    // أحكام النون الساكنة والتنوين (Noon Sakinah and Tanwin Rules)
+    /// الإظهار الحلقي - Al-Izhar Al-Halqi
+    IzharHalqi,
+    /// الإظهار المطلق - Al-Izhar Al-Mutlaq (Same word exception)
+    IzharMutlaq,
+    /// الإدغام بغنة - Idgham with Ghunnah
+    IdghamBiGhunnah,
+    /// الإدغام بغير غنة - Idgham without Ghunnah
+    IdghamBilaGhunnah,
+    /// الإدغام الناقص - Idgham Naqis (Warsh specific)
+    IdghamNaqis,
+    /// الإدغام الكامل - Idgham Kamil
+    IdghamKamil,
+    /// الإقلاب - Al-Iqlab (Noon before Ba)
+    Iqlab,
+    /// الإخفاء الحقيقي - Al-Ikhfaa Al-Haqiqi
+    IkhfaaHaqiqi,
+
+    // أحكام الميم الساكنة (Mim Sakinah Rules)
+    /// الإخفاء الشفوي - Al-Ikhfaa Al-Shafawi
+    IkhfaaShafawi,
+    /// الإدغام الشفوي - Al-Idgham Al-Shafawi
+    IdghamShafawi,
+    /// إدغام المثلين - Idgham Mithlayn
+    IdghamMithlayn,
+    /// الإظهار الشفوي - Al-Izhar Al-Shafawi
+    IzharShafawi,
+
+    // أحكام لام أل التعريف (Lam Al-Ta'rif Rules)
+    /// الإظهار القمري - Al-Izhar Al-Qamari
+    IzharQamari,
+    /// الإدغام الشمسي - Al-Idgham Al-Shamsi
+    IdghamShamsi,
+
+    // أحكام المدود (Madd Rules - Enhanced for Warsh)
+    /// المد الطبيعي - Madd Tabeei (2 harakaat)
+    MaddTabeei,
+    /// المد المتصل - Madd Muttasil (4-5 harakaat, Warsh: 4-6)
+    MaddMuttasil,
+    /// المد المنفصل - Madd Munfasil (2-4-5 harakaat, Warsh: 4-6)
+    MaddMunfasil,
+    /// المد اللازم - Madd Lazim (6 harakaat)
+    MaddLazim,
+    /// المد العارض للسكون - Madd Arid (2-4-6 harakaat)
+    MaddArid,
+    /// المد اللين - Madd Lin (2-4-6 harakaat)
+    MaddLin,
+    /// مد البدل - Madd Badal (2 harakaat, Warsh: 4-6)
+    MaddBadal,
+    /// صلة الهاء - Madd Silah (Warsh specific)
+    MaddSilah,
+
+    // أحكام الراءات (Ra Rules - Warsh specific)
+    /// ترقيق الراء - Tarqeeq Ra (Warsh)
+    TarqeeqRa,
+    /// تفخيم الراء - Tafkhim Ra
+    TafkhimRa,
+
+    // أحكام لفظ الجلالة (Allah Name)
+    /// تفخيم لفظ الجلالة - Tafkhim Lafz Al-Jalalah
+    TafkhimLafuljalala,
+
+    // أحكام القلقلة (Qalqalah Rules)
+    /// القلقلة الكبرى - Qalqalah Kubra (at word end)
+    QalqalahKubra,
+    /// القلقلة الصغرى - Qalqalah Sughra (connected)
+    QalqalahSughra,
+
+    /// No applicable rule
+    NoRule,
+}
+
+/// Detailed information about a Tajweed rule
+#[derive(Debug, Clone)]
+pub struct TajweedRule {
+    /// The rule type
+    pub rule_type: TajweedRuleType,
+    /// Rule name in Arabic
+    pub arabic_name: &'static str,
+    /// Rule name in English
+    pub english_name: &'static str,
+    /// Detailed description in Arabic
+    pub description_ar: &'static str,
+    /// Whether this is Warsh-specific
+    pub warsh_specific: bool,
+    /// Madd length in Warsh variant: (min, max) in harakaat
+    pub madd_length_warsh: Option<(u8, u8)>,
+}
+
+impl TajweedRule {
+    /// Create a TajweedRule from its type, considering the recitation style
+    pub fn from_type(rule_type: TajweedRuleType, style: RecitationStyle) -> Self {
+        match rule_type {
+            TajweedRuleType::IzharHalqi => TajweedRule {
+                rule_type,
+                arabic_name: "الإظهار الحلقي",
+                english_name: "Al-Izhar Al-Halqi",
+                description_ar: "إظهار النون الساكنة عند حروف الحلق (ء هـ ع ح غ خ).",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::IdghamBiGhunnah => TajweedRule {
+                rule_type,
+                arabic_name: "الإدغام بغنة",
+                english_name: "Idgham with Ghunnah",
+                description_ar: "إدغام النون في (ينمو) مع غنة.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::IdghamNaqis => TajweedRule {
+                rule_type,
+                arabic_name: "الإدغام الناقص",
+                english_name: "Idgham Naqis (Incomplete)",
+                description_ar: "إدغام ناقص مع بقاء الغنة في رواية ورش.",
+                warsh_specific: true,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::IdghamKamil => TajweedRule {
+                rule_type,
+                arabic_name: "الإدغام الكامل",
+                english_name: "Idgham Kamil (Complete)",
+                description_ar: "إدغام كامل بدون بقاء صفة الحرف المدغم.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::IdghamBilaGhunnah => TajweedRule {
+                rule_type,
+                arabic_name: "الإدغام بغير غنة",
+                english_name: "Idgham without Ghunnah",
+                description_ar: "إدغام النون في (ل، ر) بدون غنة.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::Iqlab => TajweedRule {
+                rule_type,
+                arabic_name: "الإقلاب",
+                english_name: "Al-Iqlab",
+                description_ar: "قلب النون الساكنة ميماً مخفاة بغنة عند حرف الباء.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::IkhfaaHaqiqi => TajweedRule {
+                rule_type,
+                arabic_name: "الإخفاء الحقيقي",
+                english_name: "Al-Ikhfaa Al-Haqiqi",
+                description_ar:
+                    "نطق النون بحالة بين الإظهار والإدغام مع غنة عند الـ 15 حرفاً.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::IkhfaaShafawi => TajweedRule {
+                rule_type,
+                arabic_name: "الإخفاء الشفوي",
+                english_name: "Al-Ikhfaa Al-Shafawi",
+                description_ar: "إخفاء الميم الساكنة بغنة عند حرف الباء.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::IdghamShafawi | TajweedRuleType::IdghamMithlayn => {
+                TajweedRule {
+                    rule_type,
+                    arabic_name: "الإدغام الشفوي (المثلين الصغير)",
+                    english_name: "Al-Idgham Al-Shafawi",
+                    description_ar: "إدغام الميم الساكنة في ميم متحركة تليها.",
+                    warsh_specific: false,
+                    madd_length_warsh: None,
+                }
+            }
+            TajweedRuleType::IzharShafawi => TajweedRule {
+                rule_type,
+                arabic_name: "الإظهار الشفوي",
+                english_name: "Al-Izhar Al-Shafawi",
+                description_ar: "إظهار الميم الساكنة بوضوح عند باقي الحروف.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::IzharQamari => TajweedRule {
+                rule_type,
+                arabic_name: "الإظهار القمري",
+                english_name: "Al-Izhar Al-Qamari",
+                description_ar: "إظهار اللام الساكنة في (أل) عند الحروف القمرية الـ 14.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::IdghamShamsi => TajweedRule {
+                rule_type,
+                arabic_name: "الإدغام الشمسي",
+                english_name: "Al-Idgham Al-Shamsi",
+                description_ar: "إدغام اللام الساكنة في (أل) في الحروف الشمسية.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::MaddTabeei => TajweedRule {
+                rule_type,
+                arabic_name: "المد الطبيعي",
+                english_name: "Madd Tabeei",
+                description_ar: "مد الألف، الواو، والياء بمقدار حركتين.",
+                warsh_specific: false,
+                madd_length_warsh: Some((2, 2)),
+            },
+            TajweedRuleType::MaddMuttasil => TajweedRule {
+                rule_type,
+                arabic_name: "المد المتصل",
+                english_name: "Madd Muttasil",
+                description_ar: if style == RecitationStyle::Warsh {
+                    "المد المتصل: 4 أو 5 أو 6 حركات في رواية ورش (الأشهر: 6)"
+                } else {
+                    "المد المتصل: 4 أو 5 حركات في رواية حفص"
+                },
+                warsh_specific: false,
+                madd_length_warsh: Some((4, 6)),
+            },
+            TajweedRuleType::MaddMunfasil => TajweedRule {
+                rule_type,
+                arabic_name: "المد المنفصل",
+                english_name: "Madd Munfasil",
+                description_ar: if style == RecitationStyle::Warsh {
+                    "المد المنفصل: 4 أو 5 أو 6 حركات في رواية ورش (الأشهر: 4)"
+                } else {
+                    "المد المنفصل: 2 أو 4 أو 5 حركات في رواية حفص"
+                },
+                warsh_specific: false,
+                madd_length_warsh: Some((4, 6)),
+            },
+            TajweedRuleType::MaddBadal => TajweedRule {
+                rule_type,
+                arabic_name: "مد البدل",
+                english_name: "Madd Badal",
+                description_ar: if style == RecitationStyle::Warsh {
+                    "مد البدل: 2 أو 4 أو 6 حركات في رواية ورش (تسهيل الهمزة)"
+                } else {
+                    "مد البدل: حركتان في رواية حفص"
+                },
+                warsh_specific: true,
+                madd_length_warsh: Some((2, 6)),
+            },
+            TajweedRuleType::MaddLazim => TajweedRule {
+                rule_type,
+                arabic_name: "المد اللازم",
+                english_name: "Madd Lazim",
+                description_ar: "المد اللازم: 6 حركات (في جميع الروايات)",
+                warsh_specific: false,
+                madd_length_warsh: Some((6, 6)),
+            },
+            TajweedRuleType::MaddArid => TajweedRule {
+                rule_type,
+                arabic_name: "المد العارض للسكون",
+                english_name: "Madd Arid",
+                description_ar: if style == RecitationStyle::Warsh {
+                    "المد العارض للسكون: 2 أو 4 أو 6 حركات (حرف المد في آخر الكلمة)"
+                } else {
+                    "المد العارض للسكون: 2 أو 4 أو 6 حركات"
+                },
+                warsh_specific: false,
+                madd_length_warsh: Some((2, 6)),
+            },
+            TajweedRuleType::MaddLin => TajweedRule {
+                rule_type,
+                arabic_name: "المد اللين",
+                english_name: "Madd Lin",
+                description_ar: "المد اللين: الواو أو الياء الساكنة بعد فتح (مثل: خيل، بيت)",
+                warsh_specific: false,
+                madd_length_warsh: Some((2, 6)),
+            },
+            TajweedRuleType::MaddSilah => TajweedRule {
+                rule_type,
+                arabic_name: "صلة الهاء",
+                english_name: "Madd Silah",
+                description_ar: "صلة الهاء الساكنة (تحويل ه الساكنة إلى حرف مد)",
+                warsh_specific: true,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::TarqeeqRa => TajweedRule {
+                rule_type,
+                arabic_name: "ترقيق الراء",
+                english_name: "Tarqeeq Ra",
+                description_ar: "ترقيق الراء في رواية ورش في مواضع خاصة.",
+                warsh_specific: true,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::TafkhimRa => TajweedRule {
+                rule_type,
+                arabic_name: "تفخيم الراء",
+                english_name: "Tafkhim Ra",
+                description_ar: "تفخيم الراء حسب القواعس.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::TafkhimLafuljalala => TajweedRule {
+                rule_type,
+                arabic_name: "تفخيم لفظ الجلالة",
+                english_name: "Tafkhim Lafz Al-Jalalah",
+                description_ar: "تفخيم لفظ الجلالة (الله) بعد فتح أو ضم.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::QalqalahKubra => TajweedRule {
+                rule_type,
+                arabic_name: "القلقلة الكبرى",
+                english_name: "Qalqalah Kubra (Major)",
+                description_ar: "القلقلة الكبرى: رجع الصوت بالقاف أو الطاء أو الباء أو الجيم أو الدال عند الوقف.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::QalqalahSughra => TajweedRule {
+                rule_type,
+                arabic_name: "القلقلة الصغرى",
+                english_name: "Qalqalah Sughra (Minor)",
+                description_ar: "القلقلة الصغرى: رجع الصوت بأحد أحرف القلقلة في الوصل (غير متطرفة).",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::IzharMutlaq => TajweedRule {
+                rule_type,
+                arabic_name: "الإظهار المطلق",
+                english_name: "Al-Izhar Al-Mutlaq",
+                description_ar: "إظهار النون الساكنة من نفس الكلمة قبل الواو والياء.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            _ => TajweedRule {
+                rule_type,
+                arabic_name: "لا يوجد حكم",
+                english_name: "No Rule",
+                description_ar: "لا يوجد حكم تجويدي.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+        }
+    }
+}
+
+/// Represents a detected rule match in a Quranic verse
+#[derive(Debug, Clone)]
+pub struct RuleMatch {
+    /// Index where the rule starts
+    pub start_index: usize,
+    /// Index where the rule ends
+    pub end_index: usize,
+    /// The target letter the rule applies to
+    pub target_letter: char,
+    /// The following letter (if relevant to the rule)
+    pub following_letter: Option<char>,
+    /// The detected rule details
+    pub rule: TajweedRule,
+    /// Context around the match (for display purposes)
+    pub context: String,
+}
+
+/// Context information for Madd detection
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MaddContext {
+    /// Hamza in same word
+    Muttasil,
+    /// Hamza in next word
+    Munfasil,
+    /// Natural (no hamza)
+    Tabeeii,
+    /// Hamza at beginning, alif at beginning
+    Badal,
+    /// Extended/prolonged letter (shadda)
+    Lazim,
+    /// Medium context
+    Arid,
+    /// Lam or Ra with sukun
+    Lin,
+}

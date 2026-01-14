@@ -1,6 +1,21 @@
 [package]
-name = "tajweed_warsh_rules"
-version = "0.1.0"
-edition = "2024"
+name = "tajweed_rules"
+version = "0.2.0"
+edition = "2021"
+authors = ["m97chahboun"]
+license = "MIT OR Apache-2.0"
+description = "A comprehensive Tajweed rule processor with Warsh recitation support. Detects and classifies Islamic Quranic recitation rules including Noon/Mim Sakinah, Lam Al-Taref, Madd, and Qalqalah rules."
+repository = "https://github.com/m97chahboun/tajweed_rules"
+readme = "README.md"
+keywords = ["tajweed", "quran", "arabic", "warsh", "recitation"]
+categories = ["text-processing", "linguistics"]
 
 [dependencies]
+
+[lib]
+name = "tajweed_rules"
+path = "src/lib.rs"
+
+[[bin]]
+name = "tajweed"
+path = "src/main.rs"
