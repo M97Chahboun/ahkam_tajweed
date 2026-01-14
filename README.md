@@ -1,4 +1,4 @@
-# Tajweed Warsh Rules
+# Tajweed Rules
 
 A comprehensive Rust library for detecting and processing Islamic Quranic recitation rules (Tajweed) with full support for the Warsh and Hafs narrations.
 
