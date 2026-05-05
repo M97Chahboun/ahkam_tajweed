@@ -1,0 +1,15 @@
+Symbol,Name,Unicode,Tajweed Use
+ۢ,Small High Meem,\u{06E2},Iqlab (Conversion)
+ۥ,Small High Waw,\u{06E5},Madd (Sila Sughra/Kubra)
+ۦ,Small High Ya,\u{06E6},Madd (Sila Sughra/Kubra)
+ٰ,Dagger Alif,\u{0670},Natural Madd (Tabeei)
+ۖ,Sali (Small Sād-Lām-Yā),\u{06D6},Stop Sign (Continue is better)
+ۗ,Qali (Small Qāf-Lām-Yā),\u{06D7},Stop Sign (Stop is better)
+ۚ,Jeem,\u{06DA},Stop Sign (Permissible stop)
+ۛ,Mu'anaqah (Three dots),\u{06DB},"Stop at one, not both"
+ۜ,Small Sād,\u{06DC},Pronounce as Sīn (in some words)
+ٓ,Maddah,\u{0653},Long Madd (Muttasil/Munfasil)
+
+
+أَفَمَنِ اِ۪تَّبَعَ رِضْوَٰنَ اَ۬للَّهِ كَمَنَ بآءَ بِسَخَطٖ مِّنَ اَ۬للَّهِ وَمَأْو۪يٰهُ جَهَنَّمُۖ وَبِيسَ اَ۬لْمَصِيرُۖ
+

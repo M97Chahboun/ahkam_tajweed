@@ -16,13 +16,13 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tajweed_warsh_rules = "0.2"
+tajweed_rules = "0.2"
 ```
 
 ## Quick Start
 
 ```rust
-use tajweed_warsh_rules::{TajweedProcessor, RecitationStyle};
+use tajweed_rules::{TajweedProcessor, RecitationStyle};
 
 fn main() {
     let processor = TajweedProcessor::new(RecitationStyle::Warsh);
@@ -42,7 +42,7 @@ fn main() {
 ### Basic Processing
 
 ```rust
-use tajweed_warsh_rules::{TajweedProcessor, RecitationStyle};
+use tajweed_rules::{TajweedProcessor, RecitationStyle};
 
 // Create a processor for Warsh recitation
 let processor = TajweedProcessor::new(RecitationStyle::Warsh);
@@ -65,7 +65,7 @@ for m in matches {
 ### Comparing Styles
 
 ```rust
-use tajweed_warsh_rules::{TajweedProcessor, RecitationStyle};
+use tajweed_rules::{TajweedProcessor, RecitationStyle};
 
 let warsh = TajweedProcessor::new(RecitationStyle::Warsh);
 let hafs = TajweedProcessor::new(RecitationStyle::Hafs);
@@ -273,7 +273,7 @@ Licensed under either of Apache License Version 2.0 or MIT license at your optio
 If you use this library in academic or professional work, please cite:
 
 ```bibtex
-@software{tajweed_warsh_rules,
+@software{tajweed_rules,
   title = {Tajweed Warsh Rules: A Comprehensive Quranic Recitation Rule Processor},
   year = {2024},
   version = {0.2.0}

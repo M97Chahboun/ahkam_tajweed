@@ -1,6 +1,6 @@
 //! Interactive CLI for Tajweed rule processing
 //!
-//! This is a command-line interface to the tajweed_warsh_rules library.
+//! This is a command-line interface to the tajweed_rules library.
 //! It allows interactive analysis of Quranic verses for Tajweed rules.
 
 use std::io::{self, Write};

@@ -86,16 +86,196 @@ pub mod processor;
 pub mod rules;
 pub mod types;
 pub mod utils;
+pub mod zwj_handler;
 
 // Re-export main types and processor for convenient access
 pub use processor::TajweedProcessor;
 pub use types::{RecitationStyle, RuleMatch, TajweedRule, TajweedRuleType};
+pub use zwj_handler::apply_zwj_to_text;
 
 /// Library version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg(test)]
-mod doctests {
-    //! These module exists just for doctest examples that don't need to be executed
-    //! The actual implementation is in the main modules
+mod debug_tests {
+    use super::*;
+
+    #[test]
+    fn debug_tanwin_ikhfaa_case() {
+        let processor = TajweedProcessor::new(RecitationStyle::Hafs);
+        let matches = processor.process_verse("كِتَابًا كَبِيرًا");
+
+        println!("Debug: Found {} rules for 'كِتَابًا كَبِيرًا':", matches.len());
+        for (i, rule_match) in matches.iter().enumerate() {
+            println!("  {}: {} ({}-{}) - '{}' -> '{}' | Context: {}",
+                i+1,
+                rule_match.rule.english_name,
+                rule_match.start_index,
+                rule_match.end_index,
+                rule_match.target_letter,
+                rule_match.following_letter.map(|c| c.to_string()).unwrap_or("-".to_string()),
+                rule_match.context
+            );
+        }
+
+        // Check if any rule involves tanwin
+        let has_ikhaa = matches.iter().any(|m| m.rule.rule_type == TajweedRuleType::IkhfaaHaqiqi);
+        println!("Has IkhfaaHaqiqi: {}", has_ikhaa);
+
+        // Let's also check the individual characters
+        let chars: Vec<char> = "كِتَابًا كَبِيرًا".chars().collect();
+        for (i, c) in chars.iter().enumerate() {
+            println!("Index {}: '{}' (U+{:04X})", i, c, *c as u32);
+        }
+    }
+
+    #[test]
+    fn debug_madd_lin_case() {
+        let processor = TajweedProcessor::new(RecitationStyle::Hafs);
+        let matches = processor.process_verse("لَيْسَ");
+
+        println!("Debug: Found {} rules for 'لَيْسَ':", matches.len());
+        for (i, rule_match) in matches.iter().enumerate() {
+            println!("  {}: {} ({}-{}) - '{}' -> '{}' | Context: {}",
+                i+1,
+                rule_match.rule.english_name,
+                rule_match.start_index,
+                rule_match.end_index,
+                rule_match.target_letter,
+                rule_match.following_letter.map(|c| c.to_string()).unwrap_or("-".to_string()),
+                rule_match.context
+            );
+        }
+
+        // Check if any rule involves MaddLin or MaddTabeei
+        let has_maddlin = matches.iter().any(|m| m.rule.rule_type == TajweedRuleType::MaddLin);
+        let has_maddtabeei = matches.iter().any(|m| m.rule.rule_type == TajweedRuleType::MaddTabeei);
+        println!("Has MaddLin: {}, Has MaddTabeei: {}", has_maddlin, has_maddtabeei);
+
+        // Let's also check the individual characters
+        let chars: Vec<char> = "لَيْسَ".chars().collect();
+        for (i, c) in chars.iter().enumerate() {
+            println!("Index {}: '{}' (U+{:04X})", i, c, *c as u32);
+        }
+    }
+
+    #[test]
+    fn debug_madd_lin_waw_case() {
+        let processor = TajweedProcessor::new(RecitationStyle::Hafs);
+        let matches = processor.process_verse("وَقْفٌ");
+
+        println!("Debug: Found {} rules for 'وَقْفٌ':", matches.len());
+        for (i, rule_match) in matches.iter().enumerate() {
+            println!("  {}: {} ({}-{}) - '{}' -> '{}' | Context: {}",
+                i+1,
+                rule_match.rule.english_name,
+                rule_match.start_index,
+                rule_match.end_index,
+                rule_match.target_letter,
+                rule_match.following_letter.map(|c| c.to_string()).unwrap_or("-".to_string()),
+                rule_match.context
+            );
+        }
+
+        // Check if any rule involves MaddLin or MaddTabeei
+        let has_maddlin = matches.iter().any(|m| m.rule.rule_type == TajweedRuleType::MaddLin);
+        let has_maddtabeei = matches.iter().any(|m| m.rule.rule_type == TajweedRuleType::MaddTabeei);
+        println!("Has MaddLin: {}, Has MaddTabeei: {}", has_maddlin, has_maddtabeei);
+
+        // Let's also check the individual characters
+        let chars: Vec<char> = "وَقْفٌ".chars().collect();
+        for (i, c) in chars.iter().enumerate() {
+            println!("Index {}: '{}' (U+{:04X})", i, c, *c as u32);
+        }
+    }
+
+    #[test]
+    fn debug_madd_muttasil_case() {
+        let processor = TajweedProcessor::new(RecitationStyle::Hafs);
+        let matches = processor.process_verse("سُوْءٌ");
+
+        println!("Debug: Found {} rules for 'سُوْءٌ':", matches.len());
+        for (i, rule_match) in matches.iter().enumerate() {
+            println!("  {}: {} ({}-{}) - '{}' -> '{}' | Context: {}",
+                i+1,
+                rule_match.rule.english_name,
+                rule_match.start_index,
+                rule_match.end_index,
+                rule_match.target_letter,
+                rule_match.following_letter.map(|c| c.to_string()).unwrap_or("-".to_string()),
+                rule_match.context
+            );
+        }
+
+        // Check if any rule involves MaddMuttasil
+        let has_maddmuttasils = matches.iter().any(|m| m.rule.rule_type == TajweedRuleType::MaddMuttasil);
+        let has_maddtabeei = matches.iter().any(|m| m.rule.rule_type == TajweedRuleType::MaddTabeei);
+        println!("Has MaddMuttasil: {}, Has MaddTabeei: {}", has_maddmuttasils, has_maddtabeei);
+
+        // Let's also check the individual characters
+        let chars: Vec<char> = "سُوْءٌ".chars().collect();
+        for (i, c) in chars.iter().enumerate() {
+            println!("Index {}: '{}' (U+{:04X})", i, c, *c as u32);
+        }
+    }
+
+    #[test]
+    fn debug_tarqeeq_ra_case() {
+        let processor = TajweedProcessor::new(RecitationStyle::Warsh); // Tarqeeq Ra is more common in Warsh
+        let matches = processor.process_verse("رِيحٌ");
+
+        println!("Debug: Found {} rules for 'رِيحٌ':", matches.len());
+        for (i, rule_match) in matches.iter().enumerate() {
+            println!("  {}: {} ({}-{}) - '{}' -> '{}' | Context: {}",
+                i+1,
+                rule_match.rule.english_name,
+                rule_match.start_index,
+                rule_match.end_index,
+                rule_match.target_letter,
+                rule_match.following_letter.map(|c| c.to_string()).unwrap_or("-".to_string()),
+                rule_match.context
+            );
+        }
+
+        // Check if any rule involves Tarqeeq Ra
+        let has_tarqeeq = matches.iter().any(|m| m.rule.rule_type == TajweedRuleType::TarqeeqRa);
+        let has_tafkhim = matches.iter().any(|m| m.rule.rule_type == TajweedRuleType::TafkhimRa);
+        println!("Has TarqeeqRa: {}, Has TafkhimRa: {}", has_tarqeeq, has_tafkhim);
+
+        // Let's also check the individual characters
+        let chars: Vec<char> = "رِيحٌ".chars().collect();
+        for (i, c) in chars.iter().enumerate() {
+            println!("Index {}: '{}' (U+{:04X})", i, c, *c as u32);
+        }
+    }
+
+    #[test]
+    fn debug_waw_madd_with_damma_case() {
+        let processor = TajweedProcessor::new(RecitationStyle::Hafs);
+        let matches = processor.process_verse("نُوحٌ");
+
+        println!("Debug: Found {} rules for 'نُوحٌ':", matches.len());
+        for (i, rule_match) in matches.iter().enumerate() {
+            println!("  {}: {} ({}-{}) - '{}' -> '{}' | Context: {}",
+                i+1,
+                rule_match.rule.english_name,
+                rule_match.start_index,
+                rule_match.end_index,
+                rule_match.target_letter,
+                rule_match.following_letter.map(|c| c.to_string()).unwrap_or("-".to_string()),
+                rule_match.context
+            );
+        }
+
+        // Check if any rule involves MaddTabeei
+        let has_maddtabeei = matches.iter().any(|m| m.rule.rule_type == TajweedRuleType::MaddTabeei);
+        println!("Has MaddTabeei: {}", has_maddtabeei);
+
+        // Let's also check the individual characters
+        let chars: Vec<char> = "نُوحٌ".chars().collect();
+        for (i, c) in chars.iter().enumerate() {
+            println!("Index {}: '{}' (U+{:04X})", i, c, *c as u32);
+        }
+    }
 }
+

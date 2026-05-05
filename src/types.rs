@@ -27,6 +27,20 @@ pub enum TajweedRuleType {
     IzharHalqi,
     /// الإظهار المطلق - Al-Izhar Al-Mutlaq (Same word exception)
     IzharMutlaq,
+    /// الوقف اللازم (مـ) - Waqf Lazim (Compulsory Stop)
+    WaqfLazim,
+    /// الوقف الممنوع (لا) - Waqf Mamnou (Prohibited Stop)
+    WaqfMamnou,
+    /// الوقف الجائز (ج) - Waqf Jaiz (Permissible Stop)
+    WaqfJaiz,
+    /// الوقف الأولى (قلى) - Waqf Awla (Stop Preferred)
+    WaqfAwla,
+    /// الوصل الأولى (صلى) - Wasl Awla (Continue Preferred)
+    WaslAwla,
+    /// تعانق الوقف (∴) - Mu'anaqah (Stop at one of the two)
+    WaqfMuanaqah,
+    /// السكت (س) - Sakt (Pause without breath)
+    Sakt,
     /// الإدغام بغنة - Idgham with Ghunnah
     IdghamBiGhunnah,
     /// الإدغام بغير غنة - Idgham without Ghunnah
@@ -339,6 +353,62 @@ impl TajweedRule {
                 arabic_name: "الإظهار المطلق",
                 english_name: "Al-Izhar Al-Mutlaq",
                 description_ar: "إظهار النون الساكنة من نفس الكلمة قبل الواو والياء.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::WaqfLazim => TajweedRule {
+                rule_type,
+                arabic_name: "الوقف اللازم",
+                english_name: "Waqf Lazim",
+                description_ar: "علامة (مـ): يجب الوقف هنا.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::WaqfMamnou => TajweedRule {
+                rule_type,
+                arabic_name: "الوقف الممنوع",
+                english_name: "Waqf Mamnou",
+                description_ar: "علامة (لا): لا يجوز الوقف هنا (إلا إذا انقطع النفس).",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::WaqfJaiz => TajweedRule {
+                rule_type,
+                arabic_name: "الوقف الجائز",
+                english_name: "Waqf Jaiz",
+                description_ar: "علامة (ج): يجوز الوقف ويجوز الوصل (مستوي الطرفين).",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::WaqfAwla => TajweedRule {
+                rule_type,
+                arabic_name: "الوقف أولى",
+                english_name: "Waqf Awla",
+                description_ar: "علامة (قلى): الوقف أولى من الوصل.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::WaslAwla => TajweedRule {
+                rule_type,
+                arabic_name: "الوصل أولى",
+                english_name: "Wasl Awla",
+                description_ar: "علامة (صلى): الوصل أولى من الوقف.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::WaqfMuanaqah => TajweedRule {
+                rule_type,
+                arabic_name: "تعانق الوقف",
+                english_name: "Mu'anaqah",
+                description_ar: "علامة (∴): إذا وقفت على أحدهما لا تقف على الآخر.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::Sakt => TajweedRule {
+                rule_type,
+                arabic_name: "السكت",
+                english_name: "Sakt",
+                description_ar: "علامة (س): سكتة لطيفة دون تنفس.",
                 warsh_specific: false,
                 madd_length_warsh: None,
             },

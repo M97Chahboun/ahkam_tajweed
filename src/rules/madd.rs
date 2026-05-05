@@ -9,6 +9,16 @@ pub fn detect_madd_rules(
     matches: &mut Vec<RuleMatch>,
     style: RecitationStyle,
 ) {
+    let index = VerseIndex::new(verse_chars);
+    detect_madd_rules_indexed(verse_chars, &index, matches, style);
+}
+
+pub(crate) fn detect_madd_rules_indexed(
+    verse_chars: &[char],
+    index: &VerseIndex,
+    matches: &mut Vec<RuleMatch>,
+    style: RecitationStyle,
+) {
     const MADD_LETTERS: [char; 3] = ['ا', 'و', 'ي'];
 
     let mut i = 0;
@@ -16,24 +26,31 @@ pub fn detect_madd_rules(
         let current_char = verse_chars[i];
 
         if MADD_LETTERS.contains(&current_char) || current_char == 'آ' {
-            let has_correct_vowel = if current_char == 'آ' {
-                true
-            } else if let Some(vowel) = get_preceding_vowel(&verse_chars, i) {
-                match current_char {
-                    'ا' => vowel == '\u{064E}',
-                    'و' => vowel == '\u{064C}',
-                    'ي' => vowel == '\u{0650}',
+            let vowel = index.preceding_vowel(i);
+            let has_basic_madd = if current_char == 'آ' {
+                true // Alif Madd is always considered valid for madd
+            } else {
+                match (current_char, vowel) {
+                    ('ا', Some('\u{064E}')) => true, // Alif needs Fatha for basic madd
+                    ('و', Some('\u{064F}')) => true, // Waw needs Damma for basic madd
+                    ('ي', Some('\u{0650}')) => true, // Ya needs Kasra for basic madd
                     _ => false,
                 }
-            } else {
-                false
             };
 
-            if has_correct_vowel || current_char == 'آ' {
-                if let Some(madd_type) = detect_madd(current_char, &verse_chars, i) {
+            let has_lin_candidate = matches!(current_char, 'و' | 'ي') && vowel == Some('\u{064E}');
+
+            if has_basic_madd || has_lin_candidate || current_char == 'آ' {
+                if let Some(madd_type) = detect_madd(current_char, verse_chars, index, i) {
+                    // Calculate end index to include diacritics
+                    let mut end_idx = i + 1;
+                    while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
+                        end_idx += 1;
+                    }
+
                     matches.push(RuleMatch {
                         start_index: i,
-                        end_index: i,
+                        end_index: end_idx,
                         target_letter: current_char,
                         following_letter: None,
                         rule: TajweedRule::from_type(madd_type, style),
@@ -50,90 +67,102 @@ pub fn detect_madd_rules(
 fn detect_madd(
     madd_letter: char,
     verse_chars: &[char],
+    index: &VerseIndex,
     current_index: usize,
 ) -> Option<TajweedRuleType> {
-    let has_following_hamza = is_following_hamza(verse_chars, current_index + 1);
-    let has_following_shadda = is_following_shadda(verse_chars, current_index + 1);
-    let word_end = is_word_end(verse_chars, current_index);
+    let preceding_vowel = index.preceding_vowel(current_index);
 
-    if has_following_shadda {
-        // Madd Lazim (المد اللازم) - 6 harakaat always
-        Some(TajweedRuleType::MaddLazim)
-    } else if has_following_hamza {
-        // Either Muttasil or Munfasil based on word boundary
-        if word_end {
-            Some(TajweedRuleType::MaddMunfasil)
-        } else {
-            Some(TajweedRuleType::MaddMuttasil)
-        }
-    } else if madd_letter == 'ي' || madd_letter == 'و' {
-        detect_soft_madd(madd_letter, verse_chars, current_index, word_end)
-    } else {
-        // Alif - check for Badal
-        if verse_chars[current_index] == 'آ' {
-            Some(TajweedRuleType::MaddBadal)
-        } else if current_index > 0 {
-            let mut back_idx = current_index - 1;
-            loop {
-                if !is_tajweed_ignorable(verse_chars[back_idx]) {
-                    if is_hamza(verse_chars[back_idx]) {
-                        return Some(TajweedRuleType::MaddBadal);
-                    }
-                    break;
-                }
-                if back_idx == 0 {
-                    break;
-                }
-                back_idx -= 1;
-            }
-            if word_end {
-                Some(TajweedRuleType::MaddArid)
-            } else {
-                Some(TajweedRuleType::MaddTabeei)
-            }
-        } else if word_end {
-            Some(TajweedRuleType::MaddArid)
-        } else {
-            Some(TajweedRuleType::MaddTabeei)
-        }
-    }
-}
-
-fn detect_soft_madd(
-    _madd_letter: char,
-    verse_chars: &[char],
-    current_index: usize,
-    word_end: bool,
-) -> Option<TajweedRuleType> {
-    // Check for Madd Lin (المد اللين)
-    let mut next_idx = current_index + 1;
-    while next_idx < verse_chars.len()
-        && is_tajweed_ignorable(verse_chars[next_idx])
-        && !is_sukun(verse_chars[next_idx])
-    {
-        next_idx += 1;
-    }
-
-    if next_idx < verse_chars.len() && is_sukun(verse_chars[next_idx]) {
-        let mut after_sukun_idx = next_idx + 1;
-        while after_sukun_idx < verse_chars.len()
-            && is_tajweed_ignorable(verse_chars[after_sukun_idx])
-        {
-            after_sukun_idx += 1;
+    // If Waw/Ya carries a Fatha, only Madd Lin is possible.
+    if matches!(madd_letter, 'و' | 'ي') && preceding_vowel == Some('\u{064E}') {
+        // Check for Madd Lin (sukun on the madd letter or the following letter)
+        if index.has_sukun_after(current_index) {
+            return Some(TajweedRuleType::MaddLin);
         }
 
-        if after_sukun_idx < verse_chars.len() {
-            let next_letter = verse_chars[after_sukun_idx];
-            if next_letter == 'ل' || next_letter == 'ر' {
+        if let Some(next_idx) = index.next_letter_after(current_index) {
+            if index.has_sukun_after(next_idx) {
                 return Some(TajweedRuleType::MaddLin);
             }
         }
+
+        return None;
     }
 
-    // Check for Madd Arid
-    if word_end {
-        Some(TajweedRuleType::MaddArid)
-    } else {
-        Some(TajweedRuleType::MaddTabeei)
+    // 1. Check for Madd Lazim: madd letter preceded by letter with shadda (like in "أَمَّا")
+    if let Some(prev_idx) = index.prev_letter_before(current_index) {
+        // Check if the letter at prev_idx has shadda following it
+        if index.has_shadda_after(prev_idx) {
+            return Some(TajweedRuleType::MaddLazim);
+        }
+    }
+
+    // 2. Check for Madd Badal: hamza BEFORE madd letter (same word)
+    if let Some(prev_idx) = index.prev_letter_before(current_index) {
+        if is_hamza(verse_chars[prev_idx]) {
+            if !index.has_boundary_between(prev_idx + 1, current_index) {
+                return Some(TajweedRuleType::MaddBadal);
+            }
+        }
+    }
+
+    // 3. Check for Madd Muttasil/Munfasil: madd letter followed by hamza
+    if let Some(next_idx) = index.next_letter_after(current_index) {
+        if is_hamza(verse_chars[next_idx]) {
+            // Check if there's a word boundary between madd letter and hamza
+            let has_word_boundary = index.has_boundary_between(current_index + 1, next_idx);
+
+            return if has_word_boundary {
+                Some(TajweedRuleType::MaddMunfasil)
+            } else {
+                Some(TajweedRuleType::MaddMuttasil)
+            };
+        }
+    }
+
+    // 4. Check for Madd Lazim: madd letter followed by letter with shadda
+    if let Some(next_idx) = index.next_letter_after(current_index) {
+        if index.has_shadda_after(next_idx) {
+            return Some(TajweedRuleType::MaddLazim);
+        }
+    }
+
+    // 5. Madd Lin already handled above for Waw/Ya with Fatha
+
+    // 6. Default: Natural madd (Tabee'i) - if conditions are met
+    // Natural madd occurs when madd letter has its corresponding vowel and is not followed by hamza or shadda
+    Some(TajweedRuleType::MaddTabeei)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn has_rule(matches: &[RuleMatch], rule: TajweedRuleType) -> bool {
+        matches.iter().any(|m| m.rule.rule_type == rule)
+    }
+
+    #[test]
+    fn test_madd_waw_with_damma() {
+        let chars: Vec<char> = "قُولُ".chars().collect();
+        let index = VerseIndex::new(&chars);
+        let mut matches = Vec::new();
+        detect_madd_rules_indexed(&chars, &index, &mut matches, RecitationStyle::Hafs);
+        assert!(has_rule(&matches, TajweedRuleType::MaddTabeei));
+    }
+
+    #[test]
+    fn test_madd_muttasil_and_munfasil() {
+        let mut matches = Vec::new();
+
+        let mut chars: Vec<char> = "جَاء".chars().collect();
+        let index = VerseIndex::new(&chars);
+        detect_madd_rules_indexed(&chars, &index, &mut matches, RecitationStyle::Hafs);
+        assert!(has_rule(&matches, TajweedRuleType::MaddMuttasil));
+
+        matches.clear();
+        chars = "قَا أ".chars().collect();
+        let index = VerseIndex::new(&chars);
+        detect_madd_rules_indexed(&chars, &index, &mut matches, RecitationStyle::Hafs);
+        assert!(has_rule(&matches, TajweedRuleType::MaddMunfasil));
     }
 }
