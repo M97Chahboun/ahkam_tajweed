@@ -2,7 +2,7 @@
 
 use crate::{
     types::{RecitationStyle, RuleMatch, TajweedRule, TajweedRuleType},
-    utils::{get_context, is_punctuation, VerseIndex},
+    utils::{get_context, is_punctuation, is_tajweed_ignorable, VerseIndex},
 };
 
 /// Detect Qalqalah rules in verse
@@ -51,6 +51,13 @@ fn check_qalqalah_type(
     if let Some(&nc) = next_char {
         if is_sukun(nc) {
             if index.is_word_end(idx) || is_verse_end(verse_chars, idx + 1) {
+                // Check if the letter also has a Shadda before the Sukun
+                // (i.e., Qalqalah Akbar: Shadda + Waqf position)
+                let has_shadda = idx > 0
+                    && verse_chars[idx.saturating_sub(1)] == '\u{0651}';
+                if has_shadda {
+                    return Some(TajweedRuleType::QalqalahAkbar);
+                }
                 return Some(TajweedRuleType::QalqalahKubra);
             }
             return Some(TajweedRuleType::QalqalahSughra);
@@ -60,18 +67,23 @@ fn check_qalqalah_type(
     // 2. Implicit Sukun due to stopping (Waqf)
     // If it's the end of the verse, any Harakah (Fatha/Damma/Kasra) becomes a Sukun
     if is_verse_end(verse_chars, idx) {
-        // Special case: If it has a Shadda at the end, it's often called 'Akbar'
-        // but usually grouped under Kubra in basic implementations.
+        // Qalqalah Akbar: letter has Shadda and is at Waqf (strongest echo)
+        // Shadda appears as U+0651 after the letter
+        let has_shadda = verse_chars[idx + 1..].iter().any(|&c| c == '\u{0651}');
+        if has_shadda {
+            return Some(TajweedRuleType::QalqalahAkbar);
+        }
         return Some(TajweedRuleType::QalqalahKubra);
     }
 
     None
 }
+
 // Mock helpers for clarity
 fn is_sukun(c: char) -> bool {
     c == '\u{0652}'
 } // Arabic Sukun
 fn is_verse_end(chars: &[char], idx: usize) -> bool {
-    // Logic to check if there are no more letters after this index in the Ayah
-    idx + 1 == chars.len() || chars[idx + 1..].iter().all(|&c| is_punctuation(c))
+    // Logic to check if there are no more Arabic letters after this index in the Ayah
+    idx + 1 == chars.len() || chars[idx + 1..].iter().all(|&c| is_tajweed_ignorable(c) || is_punctuation(c))
 }

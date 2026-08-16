@@ -74,10 +74,16 @@ fn detect_tarqeeq_ra_indexed(
         return Some(TajweedRuleType::TarqeeqRa);
     }
 
-    // Check for sukoon case - Ra with sukoon and preceded by kasra
+    // Check for sukoon case - Ra with sukoon and preceded by kasra OR saakin Ya
     if index.has_sukun_after(current_index) {
         if let Some(prev_idx) = index.prev_letter_before(current_index) {
+            // Condition A: Preceded by original Kasra
             if index.has_diacritic_after_mask(prev_idx, DIAC_KASRA | DIAC_TANWIN) {
+                return Some(TajweedRuleType::TarqeeqRa);
+            }
+            // Condition B: Preceded by Saakin Ya (e.g. خَيْر, قَدِير)
+            // Source: quranica.com — "Ra Saakin after Saakin Ya → Tarqeeq when stopping"
+            if verse_chars[prev_idx] == 'ي' && index.has_sukun_after(prev_idx) {
                 return Some(TajweedRuleType::TarqeeqRa);
             }
         }
@@ -86,19 +92,23 @@ fn detect_tarqeeq_ra_indexed(
     None
 }
 
+
 /// Detect Tafkhim Lafz Al-Jalala (تفخيم لفظ الجلالة)
 /// Allah's name is emphasized when preceded by fatha or damma
 /// Detect Tafkhim Lafz Al-Jalala (تفخيم لفظ الجلالة)
 pub fn detect_tafkhim_lafuljalala(verse_chars: &[char], current_index: usize) -> Option<usize> {
     let index = VerseIndex::new(verse_chars);
-    detect_tafkhim_lafuljalala_indexed(verse_chars, &index, current_index)
+    detect_tafkhim_lafuljalala_indexed(verse_chars, &index, current_index).map(|(idx, _)| idx)
 }
 
 fn detect_tafkhim_lafuljalala_indexed(
     verse_chars: &[char],
     index: &VerseIndex,
     current_index: usize,
-) -> Option<usize> {
+) -> Option<(usize, bool)> {
+    // Returns Some((end_idx, is_tafkhim))
+    // Returns None if not the word Allah
+
     // Ensure we have enough characters to check
     if current_index + 3 >= verse_chars.len() {
         return None;
@@ -162,20 +172,14 @@ fn detect_tafkhim_lafuljalala_indexed(
         }
     } else {
         // No explicit second lam - verify shadda was present on first lam
-        // Go back and check for shadda (ّ - U+0651) after the first lam
         let mut found_shadda = false;
         let first_lam_pos = current_index + 1;
-
-        // Skip back from check_idx to first_lam_pos + 1 to check for shadda
         for i in (first_lam_pos + 1)..check_idx {
             if verse_chars[i] == '\u{0651}' {
                 found_shadda = true;
                 break;
             }
         }
-
-        // If no shadda and no second lam, this is NOT Allah
-        // This prevents false matches like "لَهَا" (laha)
         if !found_shadda {
             return None;
         }
@@ -187,9 +191,6 @@ fn detect_tafkhim_lafuljalala_indexed(
     }
 
     // ADDITIONAL VALIDATION: Check what comes after ha
-    // Allah should be followed by:
-    // - End of word (space, punctuation, end of string)
-    // - Diacritics only (not another letter)
     let mut after_ha_idx = check_idx + 1;
     let mut saw_boundary = false;
     while after_ha_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[after_ha_idx]) {
@@ -207,16 +208,16 @@ fn detect_tafkhim_lafuljalala_indexed(
         return None;
     }
 
-    // Now check if preceded by fatha or damma to determine emphasis
-    if let Some(prev_idx) = index.prev_letter_before(current_index) {
-        if index.has_diacritic_after_mask(prev_idx, DIAC_FATHA | DIAC_DAMMA | DIAC_TANWIN) {
-            // Fatha or Damma - emphasized (Tafkhim)
-            return Some(check_idx);
-        }
-    }
+    // Determine Tafkhim vs Tarqeeq based on the preceding letter's vowel
+    let is_tafkhim = if let Some(prev_idx) = index.prev_letter_before(current_index) {
+        // Kasra → Tarqeeq (light)
+        // Fatha / Damma / Tanwin / nothing → Tafkhim (heavy)
+        !index.has_diacritic_after_mask(prev_idx, DIAC_KASRA)
+    } else {
+        true // At start of verse (Ibtida) → Tafkhim
+    };
 
-    // Return the end index even if not emphasized (could be used for other rules)
-    Some(check_idx)
+    Some((check_idx, is_tafkhim))
 }
 
 
@@ -300,13 +301,20 @@ pub(crate) fn detect_allah_name_rules_indexed(
     let mut i = 0;
     while i < verse_chars.len() {
         if verse_chars[i] == 'ا' {
-            if let Some(end_idx) = detect_tafkhim_lafuljalala_indexed(verse_chars, index, i) {
+            if let Some((end_idx, is_tafkhim)) =
+                detect_tafkhim_lafuljalala_indexed(verse_chars, index, i)
+            {
+                let rule_type = if is_tafkhim {
+                    TajweedRuleType::TafkhimLafuljalala
+                } else {
+                    TajweedRuleType::TarqeeqLafuljalala
+                };
                 matches.push(RuleMatch {
                     start_index: i,
                     end_index: end_idx + 1, // Include the ha
                     target_letter: verse_chars[i],
                     following_letter: None,
-                    rule: TajweedRule::from_type(TajweedRuleType::TafkhimLafuljalala, style),
+                    rule: TajweedRule::from_type(rule_type, style),
                     context: get_context(verse_chars, i, 5),
                 });
                 // Skip past the entire Allah word

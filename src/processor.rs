@@ -136,6 +136,7 @@ impl TajweedProcessor {
         let mut has_madd_chars = false;
         let mut has_qalqalah = false;
         let mut has_ra = false;
+        let mut has_hamza = false;       // Naql + Tasheel triggers
 
         for (i, &c) in chars.iter().enumerate() {
             match c {
@@ -327,6 +328,13 @@ impl TajweedProcessor {
                     has_ra = true;
                 }
 
+                // --------------------------------------------------
+                // Hamza forms (for Naql and Tasheel — Warsh)
+                // --------------------------------------------------
+                'ء' | 'أ' | 'إ' | 'ؤ' | 'ئ' | 'آ' => {
+                    has_hamza = true;
+                }
+
                 _ => {}
             }
         }
@@ -373,6 +381,51 @@ impl TajweedProcessor {
         // Tafkhim Lafz Al-Jalalah also requires Lam as a trigger.
         if has_lam {
             rules::ra::detect_allah_name_rules_indexed(&chars, &index, &mut matches, self.style);
+        }
+
+        // New rules: Ghunnah, Naql, Tasheel, Mutajanisayn, Mutaqaribayn, HamzatWasl
+        // (GhunnahMushadda is already emitted inside detect_noon_mim_rules_indexed above)
+
+        if has_hamza {
+            // Naql: Warsh — transfer Hamza vowel to preceding Sakin across word boundary
+            rules::noon_mim::detect_naql_rules_indexed(
+                &chars,
+                &index,
+                &mut matches,
+                self.style,
+            );
+            // Tasheel: Warsh — soften second Hamza when two consecutive Hamzas in same word
+            rules::noon_mim::detect_tasheel_rules_indexed(
+                &chars,
+                &index,
+                &mut matches,
+                self.style,
+            );
+        }
+
+        // Idgham Mutajanisayn: same-articulation-point assimilation (ط+ت, ذ+ظ, د+ت)
+        rules::noon_mim::detect_idgham_mutajanisayn_indexed(
+            &chars,
+            &index,
+            &mut matches,
+            self.style,
+        );
+        // Idgham Mutaqaribayn: adjacent-articulation assimilation (ق+ك, ل+ر)
+        rules::noon_mim::detect_idgham_mutaqaribayn_indexed(
+            &chars,
+            &index,
+            &mut matches,
+            self.style,
+        );
+
+        // Hamzat Al-Wasl: annotate connecting Alif at word starts (always runs if there's a Lam)
+        if has_lam {
+            rules::noon_mim::detect_hamzat_wasl_indexed(
+                &chars,
+                &index,
+                &mut matches,
+                self.style,
+            );
         }
 
         // Remove any duplicates before returning.
@@ -1161,11 +1214,11 @@ mod tests {
     // =============================================================
 
     #[test]
-    fn test_tafkhim_lafz_al_jalalah_in_basmala() {
+    fn test_tarqeeq_lafz_al_jalalah_in_basmala() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
         assert!(has_rule(
             &p.process_verse("بِسْمِ اللَّهِ"),
-            TajweedRuleType::TafkhimLafuljalala
+            TajweedRuleType::TarqeeqLafuljalala
         ));
     }
 
@@ -1458,7 +1511,7 @@ mod tests {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
         let m = p.process_verse("بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ");
 
-        assert!(has_rule(&m, TajweedRuleType::TafkhimLafuljalala));
+        assert!(has_rule(&m, TajweedRuleType::TarqeeqLafuljalala));
         assert!(has_rule(&m, TajweedRuleType::TafkhimRa));
 
         let unique_types: std::collections::HashSet<_> =

@@ -104,6 +104,33 @@ pub enum TajweedRuleType {
     /// القلقلة الصغرى - Qalqalah Sughra (connected)
     QalqalahSughra,
 
+    /// القلقلة الأكبر - Qalqalah Akbar (Shadda at word end / Waqf)
+    QalqalahAkbar,
+
+    // الغنة (Ghunnah)
+    /// الغنة في المشدد - Ghunnah Mushadda (Noon/Meem with Shadda — 2-harakat nasal)
+    GhunnahMushadda,
+
+    // أحكام لفظ الجلالة (Allah Name — complete)
+    /// ترقيق لفظ الجلالة - Tarqeeq Lafz Al-Jalalah (after Kasra → light)
+    TarqeeqLafuljalala,
+
+    // أحكام ورش الخاصة (Warsh-specific)
+    /// النقل - An-Naql (transfer Hamza vowel to preceding Sakin — Warsh)
+    Naql,
+    /// تسهيل الهمزة - Tasheel Al-Hamza (soften second Hamza in same word — Warsh)
+    TasheelHamza,
+
+    // إدغام المتماثلين والمتجانسين والمتقاربين
+    /// إدغام المتجانسين - Idgham Mutajanisayn (same articulation point, diff. sifat)
+    IdghamMutajanisayn,
+    /// إدغام المتقاربين - Idgham Mutaqaribayn (adjacent articulation points)
+    IdghamMutaqaribayn,
+
+    // همزة الوصل
+    /// همزة الوصل - Hamzat Al-Wasl (connecting Hamza, dropped in continuous reading)
+    HamzatWasl,
+
     /// No applicable rule
     NoRule,
 }
@@ -409,6 +436,70 @@ impl TajweedRule {
                 arabic_name: "السكت",
                 english_name: "Sakt",
                 description_ar: "علامة (س): سكتة لطيفة دون تنفس.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::QalqalahAkbar => TajweedRule {
+                rule_type,
+                arabic_name: "القلقلة الأكبر",
+                english_name: "Qalqalah Akbar (Greatest)",
+                description_ar: "القلقلة الأكبر: أحد أحرف القلقلة مع شدة عند الوقف — أقوى مراتب القلقلة.",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::GhunnahMushadda => TajweedRule {
+                rule_type,
+                arabic_name: "الغنة في المشدد",
+                english_name: "Ghunnah Mushadda",
+                description_ar: "غنة بمقدار حركتين عند النون أو الميم المشددتين (مثل: إنّ، ثمّ).",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::TarqeeqLafuljalala => TajweedRule {
+                rule_type,
+                arabic_name: "ترقيق لفظ الجلالة",
+                english_name: "Tarqeeq Lafz Al-Jalalah",
+                description_ar: "ترقيق لفظ الجلالة (الله) إذا سبقه كسر (مثل: بِاللَّه).",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::Naql => TajweedRule {
+                rule_type,
+                arabic_name: "النقل",
+                english_name: "An-Naql",
+                description_ar: "نقل حركة همزة القطع إلى الحرف الساكن قبلها وحذف الهمزة — خاصة برواية ورش.",
+                warsh_specific: true,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::TasheelHamza => TajweedRule {
+                rule_type,
+                arabic_name: "تسهيل الهمزة",
+                english_name: "Tasheel Al-Hamza",
+                description_ar: "تسهيل الهمزة الثانية بين الهمزة وحرف المد المجانس لحركتها — خاصة برواية ورش.",
+                warsh_specific: true,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::IdghamMutajanisayn => TajweedRule {
+                rule_type,
+                arabic_name: "إدغام المتجانسين",
+                english_name: "Idgham Mutajanisayn",
+                description_ar: "إدغام حرف ساكن في حرف متحرك من نفس المخرج مع اختلاف الصفات (مثل: ط+ت، ذ+ظ، د+ت).",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::IdghamMutaqaribayn => TajweedRule {
+                rule_type,
+                arabic_name: "إدغام المتقاربين",
+                english_name: "Idgham Mutaqaribayn",
+                description_ar: "إدغام حرف ساكن في حرف متحرك من مخرج قريب (مثل: ق+ك، ب+م، ل+ر).",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::HamzatWasl => TajweedRule {
+                rule_type,
+                arabic_name: "همزة الوصل",
+                english_name: "Hamzat Al-Wasl",
+                description_ar: "همزة الوصل: تُنطق عند الابتداء وتُحذف في الوصل (مثل: اذهب، الرحمن).",
                 warsh_specific: false,
                 madd_length_warsh: None,
             },

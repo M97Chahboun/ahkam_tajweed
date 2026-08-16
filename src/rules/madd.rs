@@ -128,7 +128,27 @@ fn detect_madd(
 
     // 5. Madd Lin already handled above for Waw/Ya with Fatha
 
-    // 6. Default: Natural madd (Tabee'i) - if conditions are met
+    // 6. Madd Arid li-Sukun: Madd letter followed by a letter with explicit Sukun,
+    //    or followed by the final letter of a word that has a Waqf / verse end sign after it.
+    //    Source: quranica.com — "Only occurs at Waqf; if continuing, reverts to MaddTabeei."
+    if let Some(next_idx) = index.next_letter_after(current_index) {
+        if index.has_sukun_after(next_idx) {
+            return Some(TajweedRuleType::MaddArid);
+        }
+        let has_waqf_or_verse_end = verse_chars[next_idx..].iter().any(|&c| {
+            matches!(
+                c,
+                '\u{06D5}'..='\u{06DC}'
+                | '\u{06DD}'..='\u{06DF}'
+                | '\u{FD3E}' | '\u{FD3F}'
+            )
+        });
+        if has_waqf_or_verse_end && index.is_word_end(next_idx) {
+            return Some(TajweedRuleType::MaddArid);
+        }
+    }
+
+    // 7. Default: Natural madd (Tabee'i) - if conditions are met
     // Natural madd occurs when madd letter has its corresponding vowel and is not followed by hamza or shadda
     Some(TajweedRuleType::MaddTabeei)
 }

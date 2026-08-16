@@ -37,12 +37,14 @@ pub(crate) fn detect_noon_mim_rules_indexed(
         let current_char = verse_chars[i];
         if i + 1 < verse_chars.len() {
             if index.has_shadda_after(i) && (current_char == 'ن' || current_char == 'م') {
+                // Noon/Meem with Shadda = GhunnahMushadda (standalone 2-haraka nasal)
+                // NOT IdghamBiGhunnah — this rule applies even at word start (e.g. إنّ, ثمّ)
                 matches.push(RuleMatch {
                     start_index: i,
                     end_index: i + 2,
                     target_letter: current_char,
                     following_letter: None,
-                    rule: TajweedRule::from_type(TajweedRuleType::IdghamBiGhunnah, style),
+                    rule: TajweedRule::from_type(TajweedRuleType::GhunnahMushadda, style),
                     context: get_context(&verse_chars, i, 3),
                 });
                 i += 2;
@@ -270,6 +272,289 @@ fn check_tanwin(
                 });
             }
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// An-Naql (النقل) — Warsh only
+// When a word ends with a non-Madd Sakin letter and the next word begins with
+// Hamza al-Qat'a, transfer the Hamza's vowel to the Sakin letter and drop the Hamza.
+// Source: Multiple Warsh authorities — mandatory rule in Warsh (Al-Azraq route).
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub(crate) fn detect_naql_rules_indexed(
+    verse_chars: &[char],
+    index: &VerseIndex,
+    matches: &mut Vec<RuleMatch>,
+    style: RecitationStyle,
+) {
+    // Only applies to Warsh
+    if style != RecitationStyle::Warsh {
+        return;
+    }
+
+    const MADD_LETTERS: [char; 3] = ['ا', 'و', 'ي'];
+    const HAMZA_FORMS: [char; 6] = ['ء', 'أ', 'إ', 'ؤ', 'ئ', 'آ'];
+
+    let mut i = 0;
+    while i < verse_chars.len() {
+        // Find a word boundary (space)
+        if verse_chars[i] == ' ' {
+            // Look back: find the last non-diacritic letter before this space
+            if let Some(prev_letter_idx) = index.prev_letter_before(i) {
+                let prev_letter = verse_chars[prev_letter_idx];
+                // Condition 1: preceding letter must be Sakin and NOT a Madd letter
+                let is_sakin = index.has_sukun_after(prev_letter_idx);
+                let is_madd_letter = MADD_LETTERS.contains(&prev_letter);
+
+                if is_sakin && !is_madd_letter {
+                    // Look forward: find the first letter of the next word
+                    if let Some(next_letter_idx) = index.next_letter_after(i) {
+                        let next_letter = verse_chars[next_letter_idx];
+                        // Condition 2: next word must start with Hamza al-Qat'a
+                        if HAMZA_FORMS.contains(&next_letter) {
+                            matches.push(RuleMatch {
+                                start_index: prev_letter_idx,
+                                end_index: next_letter_idx + 1,
+                                target_letter: prev_letter,
+                                following_letter: Some(next_letter),
+                                rule: TajweedRule::from_type(TajweedRuleType::Naql, style),
+                                context: get_context(verse_chars, prev_letter_idx, 4),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tasheel Al-Hamza (تسهيل الهمزة) — Warsh only
+// When two Hamzas appear consecutively in the same word (first with Fatha),
+// the second is softened to between Hamza and the corresponding Madd letter.
+// Source: Warsh Al-Azraq authorities.
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub(crate) fn detect_tasheel_rules_indexed(
+    verse_chars: &[char],
+    index: &VerseIndex,
+    matches: &mut Vec<RuleMatch>,
+    style: RecitationStyle,
+) {
+    if style != RecitationStyle::Warsh {
+        return;
+    }
+
+    const HAMZA_FORMS: [char; 6] = ['ء', 'أ', 'إ', 'ؤ', 'ئ', 'آ'];
+
+    let mut i = 0;
+    while i < verse_chars.len() {
+        let ch = verse_chars[i];
+        if HAMZA_FORMS.contains(&ch) {
+            // First Hamza must have Fatha
+            if index.has_diacritic_after_mask(i, crate::utils::DIAC_FATHA) {
+                // Look for a second Hamza in the same word (no boundary in between)
+                if let Some(next_idx) = index.next_letter_after(i) {
+                    if !index.has_boundary_between(i + 1, next_idx)
+                        && HAMZA_FORMS.contains(&verse_chars[next_idx])
+                    {
+                        matches.push(RuleMatch {
+                            start_index: i,
+                            end_index: next_idx + 1,
+                            target_letter: ch,
+                            following_letter: Some(verse_chars[next_idx]),
+                            rule: TajweedRule::from_type(TajweedRuleType::TasheelHamza, style),
+                            context: get_context(verse_chars, i, 3),
+                        });
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Idgham Mutajanisayn (إدغام المتجانسين)
+// Assimilation between letters from the same articulation point but with
+// different characteristics.  Pairs verified by Al-Jazariyyah:
+//   ط Sakin + ت  |  ذ Sakin + ظ  |  د Sakin + ت  |  ت Sakin + ط
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub(crate) fn detect_idgham_mutajanisayn_indexed(
+    verse_chars: &[char],
+    index: &VerseIndex,
+    matches: &mut Vec<RuleMatch>,
+    style: RecitationStyle,
+) {
+    // Pairs: (sakin_letter, following_letter)
+    const MUTAJANISAYN_PAIRS: [(char, char); 6] = [
+        ('ط', 'ت'), // Ta marbuta group
+        ('ت', 'ط'), // reversed
+        ('ذ', 'ظ'), // Dhal + Dha
+        ('ظ', 'ذ'), // reversed
+        ('د', 'ت'), // Dal + Ta
+        ('ت', 'د'), // Ta + Dal
+    ];
+
+    let mut i = 0;
+    while i < verse_chars.len() {
+        let ch = verse_chars[i];
+        // Check if this letter has Sukun or has no short vowel (unvoweled in Uthmani script)
+        let is_sakin = index.has_sukun_after(i)
+            || !index.has_diacritic_after_mask(i, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA | DIAC_TANWIN);
+        if is_sakin {
+            if let Some(next_idx) = index.next_letter_after(i) {
+                let next_ch = verse_chars[next_idx];
+                if MUTAJANISAYN_PAIRS.contains(&(ch, next_ch)) {
+                    matches.push(RuleMatch {
+                        start_index: i,
+                        end_index: next_idx + 1,
+                        target_letter: ch,
+                        following_letter: Some(next_ch),
+                        rule: TajweedRule::from_type(
+                            TajweedRuleType::IdghamMutajanisayn,
+                            style,
+                        ),
+                        context: get_context(verse_chars, i, 3),
+                    });
+                }
+            }
+        }
+        i += 1;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Idgham Mutaqaribayn (إدغام المتقاربين)
+// Assimilation between letters from adjacent/close articulation points.
+// Most common pairs: ق Sakin + ك  (only pair found in the Quran per Al-Jazariyyah)
+// Also: ل Sakin + ر in specific contexts
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub(crate) fn detect_idgham_mutaqaribayn_indexed(
+    verse_chars: &[char],
+    index: &VerseIndex,
+    matches: &mut Vec<RuleMatch>,
+    style: RecitationStyle,
+) {
+    // Pairs occurring in the Quran (Al-Jazariyyah authority)
+    const MUTAQARIBAYN_PAIRS: [(char, char); 2] = [
+        ('ق', 'ك'), // Qaf Sakin + Kaf — e.g. ألمْ نَخْلُقْكُمْ
+        ('ل', 'ر'), // Lam Sakin + Ra — "Bal ran" بَلْ رَان
+    ];
+
+    let mut i = 0;
+    while i < verse_chars.len() {
+        let ch = verse_chars[i];
+        let is_sakin = index.has_sukun_after(i)
+            || !index.has_diacritic_after_mask(i, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA | DIAC_TANWIN);
+        if is_sakin {
+            if let Some(next_idx) = index.next_letter_after(i) {
+                let next_ch = verse_chars[next_idx];
+                if MUTAQARIBAYN_PAIRS.contains(&(ch, next_ch)) {
+                    matches.push(RuleMatch {
+                        start_index: i,
+                        end_index: next_idx + 1,
+                        target_letter: ch,
+                        following_letter: Some(next_ch),
+                        rule: TajweedRule::from_type(
+                            TajweedRuleType::IdghamMutaqaribayn,
+                            style,
+                        ),
+                        context: get_context(verse_chars, i, 3),
+                    });
+                }
+            }
+        }
+        i += 1;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hamzat Al-Wasl (همزة الوصل)
+// The connecting Hamza is pronounced at the start of recitation but dropped
+// when connected to the previous word in continuous reading.
+//
+// Occurs in:
+//  - Definite article الـ (Al-)
+//  - Imperative verbs of Form I: افعل pattern
+//  - Specific nouns: اسم، ابن، امرؤ، امرأة، اثنتان، اسم
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub(crate) fn detect_hamzat_wasl_indexed(
+    verse_chars: &[char],
+    index: &VerseIndex,
+    matches: &mut Vec<RuleMatch>,
+    style: RecitationStyle,
+) {
+    // Specific nouns containing Hamzat Wasl (Arabic)
+    const WASL_NOUNS: [&str; 5] = ["اسم", "ابن", "امرؤ", "امرأة", "اثنتان"];
+
+    let mut i = 0;
+    while i < verse_chars.len() {
+        let ch = verse_chars[i];
+
+        // Only look at Alif (ا) — the visual form of Hamzat Wasl
+        if ch != 'ا' {
+            i += 1;
+            continue;
+        }
+
+        // Must be at the start of a word (preceded by space or at position 0)
+        let at_word_start = i == 0 || verse_chars[i - 1] == ' ';
+        if !at_word_start {
+            i += 1;
+            continue;
+        }
+
+        // Check for definite article: الـ
+        if let Some(next_idx) = index.next_letter_after(i) {
+            if verse_chars[next_idx] == 'ل' {
+                // This is Hamzat Wasl of the definite article
+                matches.push(RuleMatch {
+                    start_index: i,
+                    end_index: next_idx,
+                    target_letter: ch,
+                    following_letter: Some('ل'),
+                    rule: TajweedRule::from_type(TajweedRuleType::HamzatWasl, style),
+                    context: get_context(verse_chars, i, 3),
+                });
+                i += 1;
+                continue;
+            }
+
+            // Check for imperative verb form I: starts with Alif then a letter with Kasra/Damma sukun
+            // i.e. next letter has Kasra (Form I imperative has Kasrat al-wasl)
+            if index.has_diacritic_after_mask(i, crate::utils::DIAC_KASRA)
+                || (index.diacritic_mask_at(i) == 0 && is_arabic_letter(verse_chars[next_idx]))
+            {
+                // Check it's a clean word start with no Hamza diacritic above the Alif
+                // (Hamzat Wasl has no hamza sign above it, unlike Hamzat Qat'a which has أ or إ)
+                if ch == 'ا' {
+                    // Check if any of the WASL_NOUNS match at this position
+                    let remaining: String = verse_chars[i..].iter().collect();
+                    let is_wasl_noun = WASL_NOUNS
+                        .iter()
+                        .any(|noun| remaining.starts_with(noun));
+
+                    if is_wasl_noun {
+                        matches.push(RuleMatch {
+                            start_index: i,
+                            end_index: i + 1,
+                            target_letter: ch,
+                            following_letter: Some(verse_chars[next_idx]),
+                            rule: TajweedRule::from_type(TajweedRuleType::HamzatWasl, style),
+                            context: get_context(verse_chars, i, 3),
+                        });
+                    }
+                }
+            }
+        }
+
+        i += 1;
     }
 }
 

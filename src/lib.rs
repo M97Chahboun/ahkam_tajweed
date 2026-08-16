@@ -7,11 +7,11 @@
 //!
 //! ## Features
 //!
-//! - **25+ Tajweed Rules**: Comprehensive coverage of all major Quranic recitation rules
-//! - **Dual Narration Support**: Warsh with 40+ narration-specific variants and Hafs standard rules
+//! - **35+ Tajweed Rules**: Comprehensive coverage of all major Quranic recitation rules
+//! - **Dual Narration Support**: Warsh with 40+ narration-specific variants (Naql, Tasheel, Badal, Tarqeeq Ra) and Hafs standard rules
 //! - **Accurate Diacritic Handling**: Proper processing of Arabic diacritical marks
 //! - **Well-Structured API**: Clean, modular architecture for easy integration
-//! - **Production Ready**: Thoroughly tested and documented
+//! - **Production Ready**: Thoroughly tested (220+ automated tests) and documented
 //!
 //! ## Quick Start
 //!
@@ -30,7 +30,7 @@
 //!
 //! ## Supported Rules
 //!
-//! ### Noon Sakinah & Tanwin (أحكام النون الساكنة والتنوين)
+//! ### Noon Sakinah, Tanwin & Ghunnah (أحكام النون الساكنة والتنوين والغنة)
 //! - Al-Izhar Al-Halqi (الإظهار الحلقي)
 //! - Al-Izhar Al-Mutlaq (الإظهار المطلق)
 //! - Idgham with Ghunnah (الإدغام بغنة)
@@ -38,15 +38,17 @@
 //! - Idgham Naqis (الإدغام الناقص) - Warsh specific
 //! - Al-Iqlab (الإقلاب)
 //! - Al-Ikhfaa Al-Haqiqi (الإخفاء الحقيقي)
+//! - Ghunnah Mushadda (الغنة في المشدد) - Noon/Meem with Shaddah
 //!
 //! ### Mim Sakinah (أحكام الميم الساكنة)
 //! - Al-Ikhfaa Al-Shafawi (الإخفاء الشفوي)
 //! - Al-Idgham Al-Shafawi (الإدغام الشفوي)
 //! - Al-Izhar Al-Shafawi (الإظهار الشفوي)
 //!
-//! ### Lam Al-Ta'rif (أحكام لام أل التعريف)
+//! ### Lam Al-Ta'rif & Hamzat Wasl (أحكام لام أل التعريف وهمزة الوصل)
 //! - Al-Izhar Al-Qamari (الإظهار القمري)
 //! - Al-Idgham Al-Shamsi (الإدغام الشمسي)
+//! - Hamzat Al-Wasl (همزة الوصل)
 //!
 //! ### Madd Rules (أحكام المدود)
 //! - Madd Tabeei (المد الطبيعي)
@@ -59,15 +61,23 @@
 //! - Madd Silah (صلة الهاء) - Warsh specific
 //!
 //! ### Qalqalah (القلقلة)
+//! - Qalqalah Akbar (القلقلة الأكبر) - Shaddah at Waqf
 //! - Qalqalah Kubra (القلقلة الكبرى)
 //! - Qalqalah Sughra (القلقلة الصغرى)
 //!
-//! ### Ra Emphasis (أحكام الراء)
+//! ### Ra & Lafz Al-Jalalah (أحكام الراء ولفظ الجلالة)
 //! - Tafkhim Ra (تفخيم الراء)
-//! - Tarqeeq Ra (ترقيق الراء) - Warsh specific
+//! - Tarqeeq Ra (ترقيق الراء) - includes after Saakin Ya
+//! - Tafkhim Lafz Al-Jalalah (تفخيم لفظ الجلالة) - after Fatha/Damma
+//! - Tarqeeq Lafz Al-Jalalah (ترقيق لفظ الجلالة) - after Kasra
 //!
-//! ### Special Rules
-//! - Tafkhim Lafz Al-Jalalah (تفخيم لفظ الجلالة)
+//! ### Idgham Mutajanisayn & Mutaqaribayn (إدغام المتجانسين والمتقاربين)
+//! - Idgham Mutajanisayn (إدغام المتجانسين) - (ط+ت, ذ+ظ, د+ت)
+//! - Idgham Mutaqaribayn (إدغام المتقاربين) - (ق+ك, ل+ر)
+//!
+//! ### Warsh-Specific Rules (أحكام ورش الخاصة)
+//! - An-Naql (النقل) - vowel transfer from Hamza Qat'a to preceding Saakin
+//! - Tasheel Al-Hamza (تسهيل الهمزة) - softening consecutive Hamzas
 //!
 //! ## Recitation Styles
 //!
@@ -87,6 +97,9 @@ pub mod rules;
 pub mod types;
 pub mod utils;
 pub mod zwj_handler;
+
+#[cfg(test)]
+mod tajweed_alignment_tests;
 
 // Re-export main types and processor for convenient access
 pub use processor::TajweedProcessor;
