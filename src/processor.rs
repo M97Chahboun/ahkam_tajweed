@@ -60,7 +60,7 @@ fn is_madd_carrier(c: char) -> bool {
 /// letter that can trigger Noon-Mim-Sakinah processing.
 #[inline]
 fn is_noon_mim_tanwin_trigger(c: char) -> bool {
-    matches!(c, 'ن' | 'م' | '\u{064B}'..='\u{064D}')
+    c == 'ن' || c == 'م' || crate::utils::is_tanwin(c)
 }
 
 /// Remove duplicate [`RuleMatch`] entries that share the same
