@@ -53,7 +53,7 @@ fn is_qalqalah_letter(c: char) -> bool {
 /// Alif (ا), Waw (و), Ya (ي).
 #[inline]
 fn is_madd_carrier(c: char) -> bool {
-    matches!(c, 'ا' | 'و' | 'ي')
+    matches!(c, 'ا' | 'و' | 'ي' | '\u{06CC}')
 }
 
 /// Return `true` when `c` is a Tanwin diacritic or a Noon / Mim base
@@ -178,18 +178,31 @@ impl TajweedProcessor {
                 }
 
                 // --------------------------------------------------
-                // U+0653  Maddah sign (~) – long Madd over a carrier.
-                // Default to MaddMuttasil; the Madd module may later
-                // refine the classification.
+                // U+0653 / U+06E4 Maddah sign (~) – long Madd over a carrier.
                 // --------------------------------------------------
-                '\u{0653}' => {
+                '\u{0653}' | '\u{06E4}' => {
                     has_madd_chars = true;
+                    let rule = if let Some(next_idx) = index.next_letter_after(i) {
+                        if crate::utils::is_hamza(chars[next_idx]) {
+                            if index.has_boundary_between(i + 1, next_idx) {
+                                TajweedRuleType::MaddMunfasil
+                            } else {
+                                TajweedRuleType::MaddMuttasil
+                            }
+                        } else if index.has_shadda_after(next_idx) {
+                            TajweedRuleType::MaddLazim
+                        } else {
+                            TajweedRuleType::MaddMuttasil
+                        }
+                    } else {
+                        TajweedRuleType::MaddMuttasil
+                    };
                     matches.push(RuleMatch {
                         start_index: i.saturating_sub(1),
                         end_index: i + 1,
                         target_letter: if i > 0 { chars[i - 1] } else { c },
                         following_letter: None,
-                        rule: TajweedRule::from_type(TajweedRuleType::MaddMuttasil, self.style),
+                        rule: TajweedRule::from_type(rule, self.style),
                         context: crate::utils::get_context(&chars, i, 3),
                     });
                 }
@@ -428,6 +441,14 @@ impl TajweedProcessor {
             );
         }
 
+        // Tafkhim Isti'la Letters (خص ضغط قظ)
+        rules::ra::detect_istiila_rules_indexed(
+            &chars,
+            &index,
+            &mut matches,
+            self.style,
+        );
+
         // Remove any duplicates before returning.
         dedup_matches(&mut matches);
 
@@ -531,8 +552,8 @@ mod tests {
     #[test]
     fn test_single_non_trigger_char() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
-        // خ – not Qalqalah, not Ra, not Noon/Mim, not Lam, not a carrier
-        assert!(p.process_verse("خ").is_empty());
+        // س – not Qalqalah, not Ra, not Noon/Mim, not Lam, not Isti'la, not a carrier
+        assert!(p.process_verse("س").is_empty());
     }
 
     /// Single Qalqalah letter with no vowel context – must not panic.
@@ -880,13 +901,13 @@ mod tests {
         }
     }
 
-    /// Izhar Mutlaq: Noon Sakinah within the *same* word (rare exception)
+    /// Izhar Mutlaq: Noon Sakinah within the *same* word before Waw/Ya (e.g. دنيا)
     #[test]
     fn test_izhar_mutlaq_same_word() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
-        // أَنْعَم  – Noon Sakinah + Ain inside one word
+        // دُنْيَا – Noon Sakinah + Ya inside one word
         assert!(has_rule(
-            &p.process_verse("أَنْعَم"),
+            &p.process_verse("دُنْيَا"),
             TajweedRuleType::IzharMutlaq
         ));
     }

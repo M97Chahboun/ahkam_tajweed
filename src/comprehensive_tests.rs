@@ -217,8 +217,8 @@ mod comprehensive_tests {
     fn test_izhar_mutlaq_case() {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
         
-        // "أَنْعَم" - Noon Sakinah in same word followed by 'ع' (Ain) - should be Izhar Mutlaq
-        let matches = processor.process_verse("أَنْعَم");
+        // "دُنْيَا" - Noon Sakinah in same word followed by 'ي' - Izhar Mutlaq
+        let matches = processor.process_verse("دُنْيَا");
         assert!(has_rule(&matches, TajweedRuleType::IzharMutlaq));
     }
 

@@ -326,6 +326,34 @@ pub(crate) fn detect_allah_name_rules_indexed(
     }
 }
 
+pub(crate) fn detect_istiila_rules_indexed(
+    verse_chars: &[char],
+    _index: &VerseIndex,
+    matches: &mut Vec<RuleMatch>,
+    style: RecitationStyle,
+) {
+    const ISTIILA_LETTERS: [char; 7] = ['خ', 'ص', 'ض', 'غ', 'ط', 'ق', 'ظ'];
+    let mut i = 0;
+    while i < verse_chars.len() {
+        let ch = verse_chars[i];
+        if ISTIILA_LETTERS.contains(&ch) {
+            let mut end_idx = i + 1;
+            while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
+                end_idx += 1;
+            }
+            matches.push(RuleMatch {
+                start_index: i,
+                end_index: end_idx,
+                target_letter: ch,
+                following_letter: None,
+                rule: TajweedRule::from_type(TajweedRuleType::TafkhimHuruf, style),
+                context: get_context(verse_chars, i, 3),
+            });
+        }
+        i += 1;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

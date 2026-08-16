@@ -131,6 +131,10 @@ pub enum TajweedRuleType {
     /// همزة الوصل - Hamzat Al-Wasl (connecting Hamza, dropped in continuous reading)
     HamzatWasl,
 
+    // تفخيم حروف الاستعلاء
+    /// تفخيم حروف الاستعلاء - Tafkhim Isti'la Letters (خص ضغط قظ)
+    TafkhimHuruf,
+
     /// No applicable rule
     NoRule,
 }
@@ -500,6 +504,14 @@ impl TajweedRule {
                 arabic_name: "همزة الوصل",
                 english_name: "Hamzat Al-Wasl",
                 description_ar: "همزة الوصل: تُنطق عند الابتداء وتُحذف في الوصل (مثل: اذهب، الرحمن).",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::TafkhimHuruf => TajweedRule {
+                rule_type,
+                arabic_name: "تفخيم حروف الاستعلاء",
+                english_name: "Tafkhim (Heavy Letters)",
+                description_ar: "تفخيم أحرف الاستعلاء السبعة المجموعة في (خُصَّ ضَغْطٍ قِظْ).",
                 warsh_specific: false,
                 madd_length_warsh: None,
             },

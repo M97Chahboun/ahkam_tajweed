@@ -37,17 +37,19 @@ pub(crate) fn detect_noon_mim_rules_indexed(
         let current_char = verse_chars[i];
         if i + 1 < verse_chars.len() {
             if index.has_shadda_after(i) && (current_char == 'ن' || current_char == 'م') {
-                // Noon/Meem with Shadda = GhunnahMushadda (standalone 2-haraka nasal)
-                // NOT IdghamBiGhunnah — this rule applies even at word start (e.g. إنّ, ثمّ)
+                let mut end_idx = i + 1;
+                while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
+                    end_idx += 1;
+                }
                 matches.push(RuleMatch {
                     start_index: i,
-                    end_index: i + 2,
+                    end_index: end_idx,
                     target_letter: current_char,
                     following_letter: None,
                     rule: TajweedRule::from_type(TajweedRuleType::GhunnahMushadda, style),
                     context: get_context(&verse_chars, i, 3),
                 });
-                i += 2;
+                i = end_idx;
                 continue;
             }
         }
@@ -100,14 +102,13 @@ fn determine_rule_for_noon(
     following_letter: char,
     is_same_word: bool,
 ) -> TajweedRuleType {
-    // 1. Izhar Mutlaq (استثناء الإدغام) - Noon in same word followed by Alif, Waw, or Ya
-    if is_same_word && (following_letter == 'ا' || following_letter == 'ي' || following_letter == 'و') {
-        return TajweedRuleType::IzharMutlaq;
+    // 1. Izhar Halqi (الإظهار الحلقي) - applies whether in same word or across words (e.g. أنعمت, منهم)
+    if izhar_halqi_letters.contains(&following_letter) {
+        return TajweedRuleType::IzharHalqi;
     }
 
-    // 2. Special case: For the test "أَنْعَم", Noon Sakinah followed by throat letter in same word
-    // might be considered Izhar Mutlaq in some contexts
-    if is_same_word && izhar_halqi_letters.contains(&following_letter) {
+    // 2. Izhar Mutlaq (الإظهار المطلق) - Noon Sakinah in same word followed by Waw or Ya (e.g. دنيا, قنوان, صنوان, بنيان)
+    if is_same_word && (following_letter == 'ي' || following_letter == 'و' || following_letter == '\u{06CC}') {
         return TajweedRuleType::IzharMutlaq;
     }
 
@@ -116,22 +117,17 @@ fn determine_rule_for_noon(
         return TajweedRuleType::Iqlab;
     }
 
-    // 4. Izhar Halqi (الإظهار الحلقي)
-    if izhar_halqi_letters.contains(&following_letter) {
-        return TajweedRuleType::IzharHalqi;
-    }
-
-    // 5. Idgham bila Ghunnah (الإدغام بغير غنة)
+    // 4. Idgham bila Ghunnah (الإدغام بغير غنة)
     if idgham_bila_ghunnah_letters.contains(&following_letter) {
         return TajweedRuleType::IdghamBilaGhunnah;
     }
 
-    // 6. Idgham bi Ghunnah (الإدغام بغنة)
+    // 5. Idgham bi Ghunnah (الإدغام بغنة)
     if idgham_bi_ghunnah_letters.contains(&following_letter) {
         return TajweedRuleType::IdghamBiGhunnah;
     }
 
-    // 7. Ikhfaa Haqiqi (الإخفاء الحقيقي)
+    // 6. Ikhfaa Haqiqi (الإخفاء الحقيقي)
     if ikhfaa_letters.contains(&following_letter) {
         return TajweedRuleType::IkhfaaHaqiqi;
     }
@@ -206,9 +202,13 @@ fn check_noon_mim(
             };
 
             if rule_type != TajweedRuleType::NoRule {
+                let mut end_idx = i + 1;
+                while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
+                    end_idx += 1;
+                }
                 matches.push(RuleMatch {
                     start_index: i,
-                    end_index: next_char_index + 1, // Include the following letter in the range
+                    end_index: end_idx,
                     target_letter: current_char,
                     following_letter: Some(following_letter),
                     rule: TajweedRule::from_type(rule_type, style),
@@ -232,23 +232,26 @@ fn check_tanwin(
     style: RecitationStyle,
 ) {
     // For tanwin, the base letter is the letter that has the tanwin
-    // Tanwin is usually on the last letter of a word
+    // Tanwin is on the last letter of a word
     if let Some(base_idx) = index.prev_letter_before(i + 1) {
         let mut next_idx = index.next_letter_after(i);
 
-        if verse_chars[i] == '\u{064B}' {
-            if let Some(idx) = next_idx {
-                if verse_chars.get(idx) == Some(&'ا') {
-                    next_idx = index.next_letter_after(idx);
-                }
+        // Skip any trailing Alif in the same word for Tanwin Fath (e.g. شيئاً, عملاً, مذكوراً)
+        while let Some(idx) = next_idx {
+            if (verse_chars[idx] == 'ا' || verse_chars[idx] == 'ى')
+                && !index.has_boundary_between(base_idx + 1, idx)
+            {
+                next_idx = index.next_letter_after(idx);
+            } else {
+                break;
             }
         }
 
         if let Some(next_char_index) = next_idx {
             let following_letter = verse_chars[next_char_index];
 
-            // Check if there's a space between the base letter and the following letter
-            let is_same_word = !index.has_boundary_between(base_idx + 1, next_char_index);
+            // Tanwin is always at word end — never triggers Izhar Mutlaq
+            let is_same_word = false;
 
             let rule_type = determine_rule_for_noon(
                 izhar_halqi_letters,
@@ -262,9 +265,16 @@ fn check_tanwin(
 
             // Only add the rule if it's one of the actual Noon/Mim rules (not NoRule)
             if rule_type != TajweedRuleType::NoRule {
+                let mut end_idx = i + 1;
+                while end_idx < verse_chars.len()
+                    && (is_tajweed_ignorable(verse_chars[end_idx]) || verse_chars[end_idx] == 'ا')
+                    && (end_idx <= i + 2)
+                {
+                    end_idx += 1;
+                }
                 matches.push(RuleMatch {
                     start_index: base_idx,
-                    end_index: next_char_index + 1, // Include the following letter
+                    end_index: end_idx.max(i + 1),
                     target_letter: verse_chars[base_idx], // The base letter that has tanwin
                     following_letter: Some(following_letter),
                     rule: TajweedRule::from_type(rule_type, style),

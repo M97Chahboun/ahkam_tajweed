@@ -23,7 +23,7 @@ pub fn is_tajweed_ignorable(c: char) -> bool {
 
 /// Arabic letters used for rule detection (basic letters + common variants).
 pub const ARABIC_LETTERS: &str =
-    "ءأإآؤئٱابةتثجحخدذرزسشصضطظعغفقكلمنهويىة";
+    "ءأإآؤئٱابةتثجحخدذرزسشصضطظعغفقكلمنهويىةي\u{06CC}\u{06A9}";
 
 /// Check if character is an Arabic letter relevant for Tajweed rules
 pub fn is_arabic_letter(c: char) -> bool {
@@ -51,7 +51,7 @@ fn diacritic_bit(c: char) -> u8 {
         '\u{064E}' => DIAC_FATHA,
         '\u{064F}' => DIAC_DAMMA,
         '\u{0650}' => DIAC_KASRA,
-        '\u{0652}' => DIAC_SUKUN,
+        '\u{0652}' | '\u{06E1}' => DIAC_SUKUN,
         '\u{0651}' => DIAC_SHADDA,
         '\u{064B}' | '\u{064C}' | '\u{064D}' | '\u{0657}' | '\u{0658}' | '\u{065E}' | '\u{08F0}'..='\u{08F2}' => DIAC_TANWIN,
         _ => 0,
@@ -214,9 +214,9 @@ impl<'a> VerseIndex<'a> {
     }
 }
 
-/// Check if character is Sukun (سكون) - U+0652
+/// Check if character is Sukun (سكون) - U+0652 or Uthmani U+06E1
 pub fn is_sukun(c: char) -> bool {
-    c == '\u{0652}'
+    matches!(c, '\u{0652}' | '\u{06E1}')
 }
 
 /// Check if character is Tanwin (تنوين) - includes Fathatan, Dammatan, Kasratan

@@ -19,7 +19,7 @@ pub(crate) fn detect_madd_rules_indexed(
     matches: &mut Vec<RuleMatch>,
     style: RecitationStyle,
 ) {
-    const MADD_LETTERS: [char; 3] = ['ا', 'و', 'ي'];
+    const MADD_LETTERS: [char; 4] = ['ا', 'و', 'ي', '\u{06CC}'];
 
     let mut i = 0;
     while i < verse_chars.len() {
@@ -33,12 +33,12 @@ pub(crate) fn detect_madd_rules_indexed(
                 match (current_char, vowel) {
                     ('ا', Some('\u{064E}')) => true, // Alif needs Fatha for basic madd
                     ('و', Some('\u{064F}')) => true, // Waw needs Damma for basic madd
-                    ('ي', Some('\u{0650}')) => true, // Ya needs Kasra for basic madd
+                    ('ي' | '\u{06CC}', Some('\u{0650}')) => true, // Ya needs Kasra for basic madd
                     _ => false,
                 }
             };
 
-            let has_lin_candidate = matches!(current_char, 'و' | 'ي') && vowel == Some('\u{064E}');
+            let has_lin_candidate = matches!(current_char, 'و' | 'ي' | '\u{06CC}') && vowel == Some('\u{064E}');
 
             if has_basic_madd || has_lin_candidate || current_char == 'آ' {
                 if let Some(madd_type) = detect_madd(current_char, verse_chars, index, i) {
@@ -73,7 +73,7 @@ fn detect_madd(
     let preceding_vowel = index.preceding_vowel(current_index);
 
     // If Waw/Ya carries a Fatha, only Madd Lin is possible.
-    if matches!(madd_letter, 'و' | 'ي') && preceding_vowel == Some('\u{064E}') {
+    if matches!(madd_letter, 'و' | 'ي' | '\u{06CC}') && preceding_vowel == Some('\u{064E}') {
         // Check for Madd Lin (sukun on the madd letter or the following letter)
         if index.has_sukun_after(current_index) {
             return Some(TajweedRuleType::MaddLin);
