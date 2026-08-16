@@ -275,7 +275,7 @@ If you use this library in academic or professional work, please cite:
 ```bibtex
 @software{tajweed_rules,
   title = {Tajweed Rules: A Comprehensive Quranic Recitation Rule Processor},
-  year = {2024},
+  year = {2026},
   version = {0.2.0}
 }
 ```
