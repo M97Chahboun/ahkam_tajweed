@@ -25,6 +25,16 @@ pub(crate) fn detect_madd_rules_indexed(
     while i < verse_chars.len() {
         let current_char = verse_chars[i];
 
+        // An Alif followed immediately by Lam in the same token (definite article "الـ") is not Madd
+        if current_char == 'ا' || current_char == '\u{0671}' {
+            if let Some(next_idx) = index.next_letter_after(i) {
+                if verse_chars[next_idx] == 'ل' && !index.has_boundary_between(i + 1, next_idx) {
+                    i += 1;
+                    continue;
+                }
+            }
+        }
+
         if MADD_LETTERS.contains(&current_char) || current_char == 'آ' {
             let vowel = index.preceding_vowel(i);
             let has_basic_madd = if current_char == 'آ' {
@@ -88,11 +98,19 @@ fn detect_madd(
         return None;
     }
 
-    // 1. Check for Madd Lazim: madd letter preceded by letter with shadda (like in "أَمَّا")
-    if let Some(prev_idx) = index.prev_letter_before(current_index) {
-        // Check if the letter at prev_idx has shadda following it
-        if index.has_shadda_after(prev_idx) {
+    // 1. Check for Madd Lazim:
+    // (a) Madd letter followed by letter with shadda (e.g. الضالين, دابة, الحاقة)
+    if let Some(next_idx) = index.next_letter_after(current_index) {
+        if index.has_shadda_after(next_idx) {
             return Some(TajweedRuleType::MaddLazim);
+        }
+    }
+    // (b) Alif preceded by letter with shadda (e.g. أَمَّا)
+    if madd_letter == 'ا' {
+        if let Some(prev_idx) = index.prev_letter_before(current_index) {
+            if index.has_shadda_after(prev_idx) {
+                return Some(TajweedRuleType::MaddLazim);
+            }
         }
     }
 

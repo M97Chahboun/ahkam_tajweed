@@ -30,8 +30,9 @@ pub(crate) fn detect_lam_al_tarif_rules_indexed(
 
     let mut i = 0;
     while i < verse_chars.len() {
-        // Look for definite article "ال" at the START of a word
-        if verse_chars[i] == 'ا' && i + 1 < verse_chars.len() {
+        let ch = verse_chars[i];
+        // Definite article "ال" can start with regular Alif 'ا' (U+0627) or Hamzat Wasl 'ٱ' (U+0671)
+        if (ch == 'ا' || ch == '\u{0671}') && i + 1 < verse_chars.len() {
             check_lam_al_tarif(
                 verse_chars,
                 index,
@@ -73,13 +74,13 @@ fn check_lam_al_tarif(
     idgham_shamsi_letters: &[char],
     style: RecitationStyle,
 ) {
-    // CRITICAL FIX: Check if this alif is at a word boundary
-    // The definite article "ال" should be at the START of a word, not in the middle
-
-    // Check if there's a letter before this alif without a word boundary.
+    // Definite article "ال" can be at the start of a word, or preceded by prefix letters 'و', 'ف', 'ب', 'ك', 'ل'
     if let Some(prev_idx) = index.prev_letter_before(i) {
         if !index.has_boundary_between(prev_idx + 1, i) {
-            return; // Not at word start
+            let prev_char = verse_chars[prev_idx];
+            if !matches!(prev_char, 'و' | 'ف' | 'ب' | 'ك' | 'ل') {
+                return; // Inside a word root, not an article
+            }
         }
     }
 
@@ -95,13 +96,17 @@ fn check_lam_al_tarif(
                 );
 
                 if rule_type != TajweedRuleType::NoRule {
+                    let mut end_idx = next_idx + 1;
+                    while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
+                        end_idx += 1;
+                    }
                     matches.push(RuleMatch {
                         start_index: i,
-                        end_index: next_idx,
-                        target_letter: 'ل',
+                        end_index: end_idx,
+                        target_letter: verse_chars[next_idx],
                         following_letter: Some(following_letter),
                         rule: TajweedRule::from_type(rule_type, style),
-                        context: get_context(verse_chars, i, 3),
+                        context: get_context(verse_chars, i, 4),
                     });
                 }
             }
