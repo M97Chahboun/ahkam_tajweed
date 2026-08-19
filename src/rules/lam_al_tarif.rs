@@ -84,30 +84,32 @@ fn check_lam_al_tarif(
         }
     }
 
-    // Now check for lam after alif
+    // Now check for lam after alif (must be within the same word)
     if let Some(next_idx) = index.next_letter_after(i) {
-        if verse_chars[next_idx] == 'ل' {
+        if verse_chars[next_idx] == 'ل' && !index.has_boundary_between(i + 1, next_idx) {
             if let Some(after_lam_idx) = index.next_letter_after(next_idx) {
-                let following_letter = verse_chars[after_lam_idx];
-                let rule_type = determine_rule_for_lam_al(
-                    izhar_qamari_letters,
-                    idgham_shamsi_letters,
-                    following_letter,
-                );
+                if !index.has_boundary_between(next_idx + 1, after_lam_idx) {
+                    let following_letter = verse_chars[after_lam_idx];
+                    let rule_type = determine_rule_for_lam_al(
+                        izhar_qamari_letters,
+                        idgham_shamsi_letters,
+                        following_letter,
+                    );
 
-                if rule_type != TajweedRuleType::NoRule {
-                    let mut end_idx = next_idx + 1;
-                    while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
-                        end_idx += 1;
+                    if rule_type != TajweedRuleType::NoRule {
+                        let mut end_idx = next_idx + 1;
+                        while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
+                            end_idx += 1;
+                        }
+                        matches.push(RuleMatch {
+                            start_index: i,
+                            end_index: end_idx,
+                            target_letter: verse_chars[next_idx],
+                            following_letter: Some(following_letter),
+                            rule: TajweedRule::from_type(rule_type, style),
+                            context: get_context(verse_chars, i, 4),
+                        });
                     }
-                    matches.push(RuleMatch {
-                        start_index: i,
-                        end_index: end_idx,
-                        target_letter: verse_chars[next_idx],
-                        following_letter: Some(following_letter),
-                        rule: TajweedRule::from_type(rule_type, style),
-                        context: get_context(verse_chars, i, 4),
-                    });
                 }
             }
         }

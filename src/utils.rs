@@ -311,7 +311,7 @@ pub fn is_following_shadda(verse_chars: &[char], start_idx: usize) -> bool {
 
 /// Check if a character is a word boundary (space, punctuation, waqf mark)
 pub fn is_word_boundary(c: char) -> bool {
-    c.is_whitespace() || is_punctuation(c)
+    matches!(c, ' ' | '\t' | '\n' | '\r') || is_punctuation(c)
 }
 
 /// Check if there is a word boundary between two indices (exclusive)

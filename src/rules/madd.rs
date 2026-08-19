@@ -72,6 +72,9 @@ pub(crate) fn detect_madd_rules_indexed(
 
         i += 1;
     }
+
+    // Detect Madd Silah (هاء الضمير / هاء الكناية)
+    detect_silah_rules_indexed(verse_chars, index, matches, style);
 }
 
 fn detect_madd(
@@ -166,9 +169,156 @@ fn detect_madd(
         }
     }
 
-    // 7. Default: Natural madd (Tabee'i) - if conditions are met
+    // 7. Check if Madd letter is dropped in continuous reading (Wasl) before a Saakin letter / Hamzat Wasl
+    // (حذف حرف المد لفظاً عند التقاء الساكنين في الوصل — مثل: في الجحيم، قالوا ابنوا، إذا الشمس)
+    if is_madd_dropped_before_sakin(verse_chars, index, current_index) {
+        return None;
+    }
+
+    // 8. Default: Natural madd (Tabee'i) - if conditions are met
     // Natural madd occurs when madd letter has its corresponding vowel and is not followed by hamza or shadda
     Some(TajweedRuleType::MaddTabeei)
+}
+
+fn is_madd_dropped_before_sakin(
+    verse_chars: &[char],
+    index: &VerseIndex,
+    current_index: usize,
+) -> bool {
+    if let Some(next_idx) = index.next_letter_after(current_index) {
+        let is_same_word = !index.has_boundary_between(current_index + 1, next_idx);
+        if is_same_word {
+            // E.g. قَالُوا ٱبْنُوا — Waw is followed by silent trailing Alif in same word
+            if verse_chars[next_idx] == 'ا' || verse_chars[next_idx] == 'ى' {
+                if let Some(after_alif_idx) = index.next_letter_after(next_idx) {
+                    if index.has_boundary_between(next_idx + 1, after_alif_idx) {
+                        return is_word_starting_with_wasl_or_sakin(verse_chars, index, after_alif_idx);
+                    }
+                }
+            }
+            return false;
+        } else {
+            // Madd letter is directly at the word end (e.g. فِي ٱلْجَحِيمِ, إِذَا ٱلشَّمْسُ, يَمْحُ ٱللَّهُ)
+            return is_word_starting_with_wasl_or_sakin(verse_chars, index, next_idx);
+        }
+    }
+    false
+}
+
+fn is_word_starting_with_wasl_or_sakin(
+    verse_chars: &[char],
+    index: &VerseIndex,
+    first_letter_idx: usize,
+) -> bool {
+    let first_ch = verse_chars[first_letter_idx];
+    // 1. Hamzat Wasl ٱ (U+0671)
+    if first_ch == '\u{0671}' {
+        return true;
+    }
+    // 2. Regular Alif without vowels followed by Lam or Saakin/Shadda letter (e.g. الجحيم, ابنوا, اتقوا)
+    if first_ch == 'ا' {
+        if !index.has_diacritic_after_mask(first_letter_idx, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA) {
+            if let Some(second_idx) = index.next_letter_after(first_letter_idx) {
+                if !index.has_boundary_between(first_letter_idx + 1, second_idx) {
+                    if verse_chars[second_idx] == 'ل'
+                        || index.has_sukun_after(second_idx)
+                        || index.has_shadda_after(second_idx)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    // 3. Direct Saakin letter at word start
+    if index.has_sukun_after(first_letter_idx) {
+        return true;
+    }
+    false
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Madd Silah (صلة هاء الكناية / هاء الضمير)
+// Haa Al-Kinayah (ـهُ / ـهِ) at word end between two voweled letters:
+// - Followed by Hamza: Madd Silah Kubra (صلة كبرى — treated as Madd Munfasil)
+// - Followed by non-Hamza: Madd Silah Sughra (صلة صغرى — 2 harakaat)
+// - If written with small waw ۥ (U+06E5) or small ya ۦ (U+06E6), match on the mark.
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub(crate) fn detect_silah_rules_indexed(
+    verse_chars: &[char],
+    index: &VerseIndex,
+    matches: &mut Vec<RuleMatch>,
+    style: RecitationStyle,
+) {
+    let mut i = 0;
+    while i < verse_chars.len() {
+        let ch = verse_chars[i];
+
+        // 1. Explicit Small Waw ۥ (U+06E5) or Small Ya ۦ (U+06E6)
+        if ch == '\u{06E5}' || ch == '\u{06E6}' {
+            let is_kubra = if let Some(next_idx) = index.next_letter_after(i) {
+                is_hamza(verse_chars[next_idx])
+            } else {
+                false
+            };
+            let rule_type = if is_kubra {
+                TajweedRuleType::MaddMunfasil
+            } else {
+                TajweedRuleType::MaddSilah
+            };
+            matches.push(RuleMatch {
+                start_index: i,
+                end_index: i + 1,
+                target_letter: ch,
+                following_letter: None,
+                rule: TajweedRule::from_type(rule_type, style),
+                context: get_context(verse_chars, i, 3),
+            });
+        }
+
+        // 2. Haa Al-Kinayah (ـهُ / ـهِ / ه) at word end between two voweled letters
+        if ch == 'ه' || ch == 'ة' {
+            if let Some(next_letter_idx) = index.next_letter_after(i) {
+                if index.has_boundary_between(i + 1, next_letter_idx) {
+                    if let Some(prev_letter_idx) = index.prev_letter_before(i) {
+                        if !index.has_boundary_between(prev_letter_idx + 1, i) {
+                            let has_prev_vowel = index.has_diacritic_after_mask(prev_letter_idx, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA);
+                            let has_ha_vowel = index.has_diacritic_after_mask(i, DIAC_DAMMA | DIAC_KASRA);
+                            let has_next_vowel = index.has_diacritic_after_mask(next_letter_idx, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA | DIAC_TANWIN);
+                            let is_next_wasl = verse_chars[next_letter_idx] == '\u{0671}'
+                                || (verse_chars[next_letter_idx] == 'ا' && !index.has_diacritic_after_mask(next_letter_idx, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA));
+
+                            if has_prev_vowel && has_ha_vowel && has_next_vowel && !is_next_wasl {
+                                if !matches.iter().any(|m| (m.rule.rule_type == TajweedRuleType::MaddSilah || m.rule.rule_type == TajweedRuleType::MaddMunfasil) && m.start_index >= i && m.start_index <= i + 2) {
+                                    let is_kubra = is_hamza(verse_chars[next_letter_idx]);
+                                    let rule_type = if is_kubra {
+                                        TajweedRuleType::MaddMunfasil
+                                    } else {
+                                        TajweedRuleType::MaddSilah
+                                    };
+                                    let mut end_idx = i + 1;
+                                    while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
+                                        end_idx += 1;
+                                    }
+                                    matches.push(RuleMatch {
+                                        start_index: i,
+                                        end_index: end_idx,
+                                        target_letter: 'ه',
+                                        following_letter: Some(verse_chars[next_letter_idx]),
+                                        rule: TajweedRule::from_type(rule_type, style),
+                                        context: get_context(verse_chars, i, 3),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        i += 1;
+    }
 }
 
 #[cfg(test)]

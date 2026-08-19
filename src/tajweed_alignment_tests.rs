@@ -1210,4 +1210,45 @@ mod tajweed_alignment_tests {
         assert!(has_rule(&m_hafs, TajweedRuleType::Ishmam),
             "Ishmam in Hafs for [تَأْمَ۫نَّا]");
     }
+
+    #[test]
+    fn test_warsh_ra_tafkhim_exceptions() {
+        // Exception 1: Isti'la separator (مِصْرًا, قِطْرًا, وِقْرًا)
+        let m_misr = warsh().process_verse("ٱهۡبِطُوا۟ مِصۡرࣰا");
+        assert!(has_rule(&m_misr, TajweedRuleType::TafkhimRa),
+            "Tafkhim Ra in Warsh for [مِصۡرࣰا] due to Isti'la separator Saad");
+        assert!(!has_rule(&m_misr, TajweedRuleType::TarqeeqRa),
+            "Tarqeeq Ra should NOT be present in [مِصۡرࣰا]");
+
+        // Exception 2: Foreign names (إِبْرَاهِيم)
+        let m_ibrahim = warsh().process_verse("إِبۡرَ ٰ⁠هِـۧمَ");
+        assert!(has_rule(&m_ibrahim, TajweedRuleType::TafkhimRa),
+            "Tafkhim Ra in Warsh for [إِبۡرَ ٰ⁠هِـۧمَ]");
+    }
+
+    #[test]
+    fn test_madd_dropped_before_sakin_in_wasl() {
+        // فِي الْجَحِيمِ — Ya in فِي is dropped in Wasl
+        let m = hafs().process_verse("فِي الْجَحِيمِ");
+        let fi_madd = m.iter().find(|r| r.start_index <= 1 && r.rule.rule_type == TajweedRuleType::MaddTabeei);
+        assert!(fi_madd.is_none(), "Madd in [فِي] must be dropped before [الْجَحِيمِ]");
+
+        // قَالُوا ابْنُوا — Waw in قَالُوا is dropped in Wasl
+        let m2 = hafs().process_verse("قَالُوا ابْنُوا");
+        let qaloo_madd = m2.iter().find(|r| r.start_index <= 5 && r.rule.rule_type == TajweedRuleType::MaddTabeei);
+        assert!(qaloo_madd.is_none(), "Madd in [قَالُوا] must be dropped before [ابْنُوا]");
+    }
+
+    #[test]
+    fn test_madd_silah_sughra_plain_text() {
+        // لَهُ بُنْيَانًا (Haa Al-Kinayah between two voweled letters)
+        let m = hafs().process_verse("لَهُ بُنْيَانًا");
+        assert!(has_rule(&m, TajweedRuleType::MaddSilah),
+            "MaddSilah Sughra in [لَهُ بُنْيَانًا]");
+
+        // بِهِ كَثِيرًا
+        let m2 = hafs().process_verse("بِهِ كَثِيرًا");
+        assert!(has_rule(&m2, TajweedRuleType::MaddSilah),
+            "MaddSilah Sughra in [بِهِ كَثِيرًا]");
+    }
 }
