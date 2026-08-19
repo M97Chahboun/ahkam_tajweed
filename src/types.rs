@@ -135,6 +135,10 @@ pub enum TajweedRuleType {
     /// تفخيم حروف الاستعلاء - Tafkhim Isti'la Letters (خص ضغط قظ)
     TafkhimHuruf,
 
+    // الإشمام والاختلاس
+    /// الإشمام - Al-Ishmam (lip rounding for elided Dammah in تأمنا/تامنّا)
+    Ishmam,
+
     /// No applicable rule
     NoRule,
 }
@@ -512,6 +516,14 @@ impl TajweedRule {
                 arabic_name: "تفخيم حروف الاستعلاء",
                 english_name: "Tafkhim (Heavy Letters)",
                 description_ar: "تفخيم أحرف الاستعلاء السبعة المجموعة في (خُصَّ ضَغْطٍ قِظْ).",
+                warsh_specific: false,
+                madd_length_warsh: None,
+            },
+            TajweedRuleType::Ishmam => TajweedRule {
+                rule_type,
+                arabic_name: "الإشمام",
+                english_name: "Al-Ishmam",
+                description_ar: "الإشمام: ضم الشفتين بعيد تسكين النون مع بقاء الغنة للإشارة إلى الضمة المحذوفة، ويجوز فيه الاختلاس (الروم) في (تَأْمَنَّا / تَامَ۬نَّا) بسورة يوسف.",
                 warsh_specific: false,
                 madd_length_warsh: None,
             },

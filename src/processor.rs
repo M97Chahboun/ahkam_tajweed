@@ -449,6 +449,14 @@ impl TajweedProcessor {
             self.style,
         );
 
+        // Al-Ishmam / Al-Ikhtilas (تأمنا / تامنا في يوسف)
+        rules::noon_mim::detect_ishmam_rules_indexed(
+            &chars,
+            &index,
+            &mut matches,
+            self.style,
+        );
+
         // Remove any duplicates before returning.
         dedup_matches(&mut matches);
 

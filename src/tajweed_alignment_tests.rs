@@ -1197,4 +1197,17 @@ mod tajweed_alignment_tests {
         assert!(has_rule(&m, TajweedRuleType::TarqeeqRa),
             "TarqeeqRa after Saakin Ya in [خَيْرْ]");
     }
+
+    #[test]
+    fn test_ishmam_in_surah_yusuf() {
+        // Warsh: تَامَ۬نَّا (with dot \u{06EC})
+        let m_warsh = warsh().process_verse("قَالُواْ يَٰٓأَبَانَا مَا لَكَ لَا تَامَ۬نَّا عَلَىٰ يُوسُفَ");
+        assert!(has_rule(&m_warsh, TajweedRuleType::Ishmam),
+            "Ishmam in Warsh for [تَامَ۬نَّا]");
+
+        // Hafs: تَأْمَ۫نَّا (with open diamond \u{06EB} or standard)
+        let m_hafs = hafs().process_verse("قَالُوا يَا أَبَانَا مَا لَكَ لَا تَأْمَ۫نَّا عَلَىٰ يُوسُفَ");
+        assert!(has_rule(&m_hafs, TajweedRuleType::Ishmam),
+            "Ishmam in Hafs for [تَأْمَ۫نَّا]");
+    }
 }

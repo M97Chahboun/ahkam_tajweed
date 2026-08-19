@@ -568,6 +568,83 @@ pub(crate) fn detect_hamzat_wasl_indexed(
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Al-Ishmam (الإشمام) / Al-Ikhtilas (الاختلاس)
+// Occurs uniquely in Surah Yusuf [12:11] in the word (تَأْمَنَّا / تَامَ۬نَّا).
+// Marked in Uthmani script with U+06EC (filled dot) or U+06EB (open diamond)
+// above/below the Noon/Meem.
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub(crate) fn detect_ishmam_rules_indexed(
+    verse_chars: &[char],
+    index: &VerseIndex,
+    matches: &mut Vec<RuleMatch>,
+    style: RecitationStyle,
+) {
+    let mut i = 0;
+    while i < verse_chars.len() {
+        let ch = verse_chars[i];
+
+        // 1. Direct detection via Uthmani Ishmam/Tashil mark U+06EC or U+06EB on/adjacent to Noon
+        if ch == '\u{06EC}' || ch == '\u{06EB}' {
+            if let Some(target_idx) = index.next_letter_after(i).or_else(|| index.prev_letter_before(i)) {
+                let target_ch = verse_chars[target_idx];
+                if target_ch == 'ن' {
+                    let start_idx = target_idx;
+                    let mut end_idx = target_idx.max(i) + 1;
+                    while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
+                        end_idx += 1;
+                    }
+                    if !matches.iter().any(|m| m.rule.rule_type == TajweedRuleType::Ishmam && m.start_index == start_idx) {
+                        matches.push(RuleMatch {
+                            start_index: start_idx,
+                            end_index: end_idx,
+                            target_letter: 'ن',
+                            following_letter: None,
+                            rule: TajweedRule::from_type(TajweedRuleType::Ishmam, style),
+                            context: get_context(verse_chars, target_idx, 3),
+                        });
+                    }
+                }
+            }
+        }
+
+        // 2. Word-level detection for تأمنا / تامنا (تَأْمَنَّا / تَامَنَّا)
+        if ch == 'ت' && i + 3 < verse_chars.len() {
+            if let Some(second_idx) = index.next_letter_after(i) {
+                let second_ch = verse_chars[second_idx];
+                if matches!(second_ch, 'ا' | 'أ' | 'ء' | 'ـ' | '\u{0670}' | '\u{06E4}') {
+                    if let Some(mim_idx) = index.next_letter_after(second_idx) {
+                        if verse_chars[mim_idx] == 'م' {
+                            if let Some(noon_idx) = index.next_letter_after(mim_idx) {
+                                if verse_chars[noon_idx] == 'ن' && index.has_shadda_after(noon_idx) {
+                                    let mut end_idx = noon_idx + 1;
+                                    while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
+                                        end_idx += 1;
+                                    }
+                                    let start_idx = noon_idx;
+                                    if !matches.iter().any(|m| m.rule.rule_type == TajweedRuleType::Ishmam && (m.start_index == start_idx || m.start_index <= mim_idx)) {
+                                        matches.push(RuleMatch {
+                                            start_index: start_idx,
+                                            end_index: end_idx,
+                                            target_letter: 'ن',
+                                            following_letter: None,
+                                            rule: TajweedRule::from_type(TajweedRuleType::Ishmam, style),
+                                            context: get_context(verse_chars, noon_idx, 3),
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        i += 1;
+    }
+}
+
 #[test]
 fn test_noon_rules() {
     // Setup letters as they would appear in your processor
