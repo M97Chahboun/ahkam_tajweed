@@ -1,4 +1,4 @@
-# Tajweed Rules
+# Ahkam Tajweed
 
 A comprehensive, high-performance Rust library for detecting and processing Islamic Quranic recitation rules (Tajweed) with full support for the Warsh ('an Nafi') and Hafs ('an 'Asim) narrations.
 
