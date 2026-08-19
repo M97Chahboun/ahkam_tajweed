@@ -61,12 +61,7 @@ pub fn is_diacritic(c: char) -> bool {
 
 /// Get the base letter from a character cluster (removing diacritics)
 pub fn get_base_letter(cluster: &str) -> Option<char> {
-    for c in cluster.chars() {
-        if is_arabic_letter(c) {
-            return Some(c);
-        }
-    }
-    None
+    cluster.chars().find(|&c| is_arabic_letter(c))
 }
 
 /// Determine if leading ZWJ is needed

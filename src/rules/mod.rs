@@ -1,12 +1,14 @@
 //! Rule detection modules for Tajweed
 //!
 //! This module contains sub-modules for detecting different categories of Tajweed rules:
+//! - [`letters`]: Centralized Arabic letter sets (single source of truth)
 //! - [`noon_mim`]: Noon Sakinah, Mim Sakinah, and Tanwin rules
 //! - [`lam_al_tarif`]: Lam Al-Ta'rif (definite article) rules
 //! - [`madd`]: Madd (vowel prolongation) rules
 //! - [`qalqalah`]: Qalqalah (bouncing) rules
 //! - [`ra`]: Ra emphasis and Allah name emphasis rules
 
+pub mod letters;
 pub mod lam_al_tarif;
 pub mod madd;
 pub mod noon_mim;

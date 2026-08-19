@@ -112,8 +112,8 @@ fn detect_tarqeeq_ra_styled(
     }
 
     // 3. Warsh-specific rules for Ra with Fatha or Damma (رَ / رُ / رًا / رٌ)
-    if style == RecitationStyle::Warsh {
-        if index.has_diacritic_after_mask(current_index, DIAC_FATHA | DIAC_DAMMA | DIAC_TANWIN) {
+    if style == RecitationStyle::Warsh
+        && index.has_diacritic_after_mask(current_index, DIAC_FATHA | DIAC_DAMMA | DIAC_TANWIN) {
             // Check for mandatory Tafkhim exceptions in Warsh
             if is_warsh_ra_tafkhim_exception(verse_chars, index, current_index) {
                 return None; // Exception -> Tafkhim
@@ -122,11 +122,10 @@ fn detect_tarqeeq_ra_styled(
             if let Some(prev_idx) = index.prev_letter_before(current_index) {
                 if !index.has_boundary_between(prev_idx + 1, current_index) {
                     // Case A: Preceded by Saakin Ya (e.g. خَيْرًا, طَيْرًا, نَذِيرٌ, خَبِيرًا, بَصِيرٌ, غَيْرَ)
-                    if verse_chars[prev_idx] == 'ي' || verse_chars[prev_idx] == '\u{06CC}' {
-                        if index.has_sukun_after(prev_idx) || index.diacritic_mask_at(prev_idx) == 0 {
+                    if (verse_chars[prev_idx] == 'ي' || verse_chars[prev_idx] == '\u{06CC}')
+                        && (index.has_sukun_after(prev_idx) || index.diacritic_mask_at(prev_idx) == 0) {
                             return Some(TajweedRuleType::TarqeeqRa);
                         }
-                    }
 
                     // Case B: Preceded by direct original Kasra (e.g. نَاصِرًا, قَادِرُونَ, سِرَاجًا)
                     if index.has_diacritic_after_mask(prev_idx, DIAC_KASRA) {
@@ -138,17 +137,15 @@ fn detect_tarqeeq_ra_styled(
                     let is_sakin_prev = index.has_sukun_after(prev_idx) || index.diacritic_mask_at(prev_idx) == 0;
                     if is_sakin_prev && !matches!(prev_ch, 'ص' | 'ط' | 'ق' | 'ض' | 'ظ' | 'غ') {
                         if let Some(prev_prev_idx) = index.prev_letter_before(prev_idx) {
-                            if !index.has_boundary_between(prev_prev_idx + 1, current_index) {
-                                if index.has_diacritic_after_mask(prev_prev_idx, DIAC_KASRA) {
+                            if !index.has_boundary_between(prev_prev_idx + 1, current_index)
+                                && index.has_diacritic_after_mask(prev_prev_idx, DIAC_KASRA) {
                                     return Some(TajweedRuleType::TarqeeqRa);
                                 }
-                            }
                         }
                     }
                 }
             }
         }
-    }
 
     None
 }

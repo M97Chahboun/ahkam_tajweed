@@ -1,5 +1,6 @@
 //! Noon Sakinah, Tanwin, and Mim Sakinah rule detection
 
+use crate::rules::letters;
 use crate::types::{RecitationStyle, RuleMatch, TajweedRule, TajweedRuleType};
 use crate::utils::*;
 
@@ -19,24 +20,12 @@ pub(crate) fn detect_noon_mim_rules_indexed(
     matches: &mut Vec<RuleMatch>,
     style: RecitationStyle,
 ) {
-    // Setup letter maps
-    const IZHAR_HALQI_LETTERS: [char; 11] = [
-        'ء', 'أ', 'إ', 'ؤ', 'ئ', 'آ', 'ه', 'ع', 'ح', 'غ', 'خ',
-    ];
-    const IDGHAM_BI_GHUNNAH_LETTERS: [char; 4] = ['ي', 'ن', 'م', 'و'];
-    const IDGHAM_BILA_GHUNNAH_LETTERS: [char; 2] = ['ل', 'ر'];
-    const IKHFAA_LETTERS: [char; 15] = [
-        'ص', 'ذ', 'ث', 'ك', 'ج', 'ش', 'ق', 'س', 'د', 'ط', 'ز', 'ف', 'ت', 'ض', 'ظ',
-    ];
-    const IQLAB_LETTER: char = 'ب';
-    const IKHFAA_SHAFAWI_LETTER: char = 'ب';
-    const IDGHAM_SHAFAWI_LETTER: char = 'م';
 
     let mut i = 0;
     while i < verse_chars.len() {
         let current_char = verse_chars[i];
-        if i + 1 < verse_chars.len() {
-            if index.has_shadda_after(i) && (current_char == 'ن' || current_char == 'م') {
+        if i + 1 < verse_chars.len()
+            && index.has_shadda_after(i) && (current_char == 'ن' || current_char == 'م') {
                 let mut end_idx = i + 1;
                 while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
                     end_idx += 1;
@@ -47,27 +36,26 @@ pub(crate) fn detect_noon_mim_rules_indexed(
                     target_letter: current_char,
                     following_letter: None,
                     rule: TajweedRule::from_type(TajweedRuleType::GhunnahMushadda, style),
-                    context: get_context(&verse_chars, i, 3),
+                    context: get_context(verse_chars, i, 3),
                 });
                 i = end_idx;
                 continue;
             }
-        }
 
         // Noon or Mim with Sukun/Tanwin
         if current_char == 'ن' || current_char == 'م' {
             check_noon_mim(
-                &verse_chars,
+                verse_chars,
                 index,
                 i,
                 matches,
-                &IZHAR_HALQI_LETTERS,
-                &IDGHAM_BI_GHUNNAH_LETTERS,
-                &IDGHAM_BILA_GHUNNAH_LETTERS,
-                &IKHFAA_LETTERS,
-                IQLAB_LETTER,
-                IKHFAA_SHAFAWI_LETTER,
-                IDGHAM_SHAFAWI_LETTER,
+                letters::IZHAR_HALQI,
+                letters::IDGHAM_BI_GHUNNAH,
+                letters::IDGHAM_BILA_GHUNNAH,
+                letters::IKHFAA,
+                letters::IQLAB,
+                letters::IKHFAA_SHAFAWI,
+                letters::IDGHAM_SHAFAWI,
                 current_char,
                 style,
             );
@@ -76,15 +64,15 @@ pub(crate) fn detect_noon_mim_rules_indexed(
         // Tanwin handling
         if is_tanwin(current_char) {
             check_tanwin(
-                &verse_chars,
+                verse_chars,
                 index,
                 i,
                 matches,
-                &IZHAR_HALQI_LETTERS,
-                &IDGHAM_BI_GHUNNAH_LETTERS,
-                &IDGHAM_BILA_GHUNNAH_LETTERS,
-                &IKHFAA_LETTERS,
-                IQLAB_LETTER,
+                letters::IZHAR_HALQI,
+                letters::IDGHAM_BI_GHUNNAH,
+                letters::IDGHAM_BILA_GHUNNAH,
+                letters::IKHFAA,
+                letters::IQLAB,
                 style,
             );
         }
@@ -212,7 +200,7 @@ fn check_noon_mim(
                     target_letter: current_char,
                     following_letter: Some(following_letter),
                     rule: TajweedRule::from_type(rule_type, style),
-                    context: get_context(&verse_chars, i, 3),
+                    context: get_context(verse_chars, i, 3),
                 });
             }
         }
@@ -278,7 +266,7 @@ fn check_tanwin(
                     target_letter: verse_chars[base_idx], // The base letter that has tanwin
                     following_letter: Some(following_letter),
                     rule: TajweedRule::from_type(rule_type, style),
-                    context: get_context(&verse_chars, base_idx, 3),
+                    context: get_context(verse_chars, base_idx, 3),
                 });
             }
         }
@@ -303,8 +291,8 @@ pub(crate) fn detect_naql_rules_indexed(
         return;
     }
 
-    const MADD_LETTERS: [char; 3] = ['ا', 'و', 'ي'];
-    const HAMZA_FORMS: [char; 6] = ['ء', 'أ', 'إ', 'ؤ', 'ئ', 'آ'];
+    let madd_letters = letters::MADD_LETTERS;
+    let hamza_forms = letters::HAMZA_FORMS;
 
     let mut i = 0;
     while i < verse_chars.len() {
@@ -315,14 +303,14 @@ pub(crate) fn detect_naql_rules_indexed(
                 let prev_letter = verse_chars[prev_letter_idx];
                 // Condition 1: preceding letter must be Sakin and NOT a Madd letter
                 let is_sakin = index.has_sukun_after(prev_letter_idx);
-                let is_madd_letter = MADD_LETTERS.contains(&prev_letter);
+                let is_madd_letter = madd_letters.contains(&prev_letter);
 
                 if is_sakin && !is_madd_letter {
                     // Look forward: find the first letter of the next word
                     if let Some(next_letter_idx) = index.next_letter_after(i) {
                         let next_letter = verse_chars[next_letter_idx];
                         // Condition 2: next word must start with Hamza al-Qat'a
-                        if HAMZA_FORMS.contains(&next_letter) {
+                        if hamza_forms.contains(&next_letter) {
                             matches.push(RuleMatch {
                                 start_index: prev_letter_idx,
                                 end_index: next_letter_idx + 1,
@@ -357,18 +345,18 @@ pub(crate) fn detect_tasheel_rules_indexed(
         return;
     }
 
-    const HAMZA_FORMS: [char; 6] = ['ء', 'أ', 'إ', 'ؤ', 'ئ', 'آ'];
+    let hamza_forms = letters::HAMZA_FORMS;
 
     let mut i = 0;
     while i < verse_chars.len() {
         let ch = verse_chars[i];
-        if HAMZA_FORMS.contains(&ch) {
+        if hamza_forms.contains(&ch) {
             // First Hamza must have Fatha
             if index.has_diacritic_after_mask(i, crate::utils::DIAC_FATHA) {
                 // Look for a second Hamza in the same word (no boundary in between)
                 if let Some(next_idx) = index.next_letter_after(i) {
                     if !index.has_boundary_between(i + 1, next_idx)
-                        && HAMZA_FORMS.contains(&verse_chars[next_idx])
+                        && hamza_forms.contains(&verse_chars[next_idx])
                     {
                         matches.push(RuleMatch {
                             start_index: i,

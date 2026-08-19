@@ -35,33 +35,48 @@
 //! | Other | Sakt, NoRule |
 
 use crate::rules;
+use crate::rules::letters;
 use crate::types::{RecitationStyle, RuleMatch, TajweedRule, TajweedRuleType};
 use crate::zwj_handler;
+
+// ---------------------------------------------------------------
+// Explicit Unicode symbol → rule table (Stage 1 scan)
+// ---------------------------------------------------------------
+
+/// Maps explicit Tajweed/Waqf Unicode marks to their rule type and a
+/// target-letter offset relative to the symbol's position.
+///
+/// `offset = 0`  → the symbol itself is the target span.
+/// `offset = -1` → the character *before* the symbol is the target (e.g. Iqlab mark).
+struct SymbolRule {
+    char: char,
+    rule: TajweedRuleType,
+    /// -1 = preceding letter, 0 = symbol itself
+    offset: i8,
+}
+
+const SYMBOL_RULES: &[SymbolRule] = &[
+    // Small High Meem U+06E2 — marks an Iqlab; target is the Noon before it.
+    SymbolRule { char: '\u{06E2}', rule: TajweedRuleType::Iqlab,         offset: -1 },
+    // Dagger Alif U+0670 — natural Madd.
+    SymbolRule { char: '\u{0670}', rule: TajweedRuleType::MaddTabeei,    offset:  0 },
+    // Small Waw U+06E5 / Small Ya U+06E6 — Silah.
+    SymbolRule { char: '\u{06E5}', rule: TajweedRuleType::MaddSilah,     offset:  0 },
+    SymbolRule { char: '\u{06E6}', rule: TajweedRuleType::MaddSilah,     offset:  0 },
+    // Waqf / Wasl marks.
+    SymbolRule { char: '\u{06D6}', rule: TajweedRuleType::WaslAwla,      offset:  0 },  // صلى
+    SymbolRule { char: '\u{06D7}', rule: TajweedRuleType::WaqfAwla,      offset:  0 },  // قلى
+    SymbolRule { char: '\u{06DA}', rule: TajweedRuleType::WaqfJaiz,      offset:  0 },  // ج
+    SymbolRule { char: '\u{06DB}', rule: TajweedRuleType::WaqfMuanaqah,  offset:  0 },  // ∴
+    SymbolRule { char: '\u{06D5}', rule: TajweedRuleType::WaqfLazim,     offset:  0 },  // مـ
+    SymbolRule { char: '\u{06D9}', rule: TajweedRuleType::WaqfMamnou,    offset:  0 },  // لا
+    SymbolRule { char: '\u{06DC}', rule: TajweedRuleType::Sakt,          offset:  0 },  // س
+];
 
 // ---------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------
 
-/// Return `true` when `c` is one of the five Qalqalah letters:
-/// Qaf (ق), Ta (ط), Ba (ب), Jeem (ج), Dal (د).
-#[inline]
-fn is_qalqalah_letter(c: char) -> bool {
-    matches!(c, 'ق' | 'ط' | 'ب' | 'ج' | 'د')
-}
-
-/// Return `true` when `c` is one of the three primary Madd carrier letters:
-/// Alif (ا), Waw (و), Ya (ي).
-#[inline]
-fn is_madd_carrier(c: char) -> bool {
-    matches!(c, 'ا' | 'و' | 'ي' | '\u{06CC}')
-}
-
-/// Return `true` when `c` is a Tanwin diacritic or a Noon / Mim base
-/// letter that can trigger Noon-Mim-Sakinah processing.
-#[inline]
-fn is_noon_mim_tanwin_trigger(c: char) -> bool {
-    c == 'ن' || c == 'م' || crate::utils::is_tanwin(c)
-}
 
 /// Remove duplicate [`RuleMatch`] entries that share the same
 /// `(start_index, end_index, rule_type)`.  The *first* occurrence is
@@ -139,47 +154,46 @@ impl TajweedProcessor {
         let mut has_hamza = false;       // Naql + Tasheel triggers
 
         for (i, &c) in chars.iter().enumerate() {
+            // ── Check the explicit-symbol table first ──────────────────────
+            if let Some(sym) = SYMBOL_RULES.iter().find(|s| s.char == c) {
+                let target_i = if sym.offset < 0 {
+                    i.saturating_sub((-sym.offset) as usize)
+                } else {
+                    i
+                };
+                // Flag relevant Stage-2 modules even for explicit symbols.
+                has_noon_mim_tanwin = true; // Iqlab symbol implies Noon exists nearby.
+                matches.push(RuleMatch {
+                    start_index: target_i,
+                    end_index: i + 1,
+                    target_letter: if sym.offset < 0 { chars[target_i] } else { c },
+                    following_letter: None,
+                    rule: TajweedRule::from_type(sym.rule, self.style),
+                    context: crate::utils::get_context(&chars, i, 3),
+                });
+                // For Maddah signs we still fall through to the special handler below.
+                if c != '\u{0653}' && c != '\u{06E4}' {
+                    continue;
+                }
+            }
+
             match c {
-                // --------------------------------------------------
-                // Noon / Mim / Tanwin trigger letters
-                // --------------------------------------------------
-                c if is_noon_mim_tanwin_trigger(c) => {
+                // ── Noon / Mim / Tanwin trigger letters ─────────────────────
+                c if crate::utils::is_tanwin(c) || c == 'ن' || c == 'م' => {
                     has_noon_mim_tanwin = true;
                 }
 
-                // --------------------------------------------------
-                // U+06E2  Small High Meem – explicit Iqlab mark
-                // --------------------------------------------------
-                '\u{06E2}' => {
-                    has_noon_mim_tanwin = true; // other Noons may exist
-                    matches.push(RuleMatch {
-                        start_index: i.saturating_sub(1), // the Noon it annotates
-                        end_index: i + 1,
-                        target_letter: c,
-                        following_letter: None,
-                        rule: TajweedRule::from_type(TajweedRuleType::Iqlab, self.style),
-                        context: crate::utils::get_context(&chars, i, 3),
-                    });
-                }
-
-                // --------------------------------------------------
-                // Lam / Alif-Wasla – gate for Lam Al-Ta'rif AND
-                // Tafkhim Lafz Al-Jalalah
-                // --------------------------------------------------
+                // ── Lam / Alif-Wasla — gate for Lam Al-Ta'rif ───────────────
                 'ل' | 'ٱ' => {
                     has_lam = true;
                 }
 
-                // --------------------------------------------------
-                // Primary Madd carriers (ا و ي)
-                // --------------------------------------------------
-                c if is_madd_carrier(c) => {
+                // ── Primary Madd carriers (ا و ي) ──────────────────────────
+                c if letters::MADD_CARRIERS.contains(&c) => {
                     has_madd_chars = true;
                 }
 
-                // --------------------------------------------------
-                // U+0653 / U+06E4 Maddah sign (~) – long Madd over a carrier.
-                // --------------------------------------------------
+                // ── U+0653 / U+06E4 Maddah sign — long Madd over a carrier ──
                 '\u{0653}' | '\u{06E4}' => {
                     has_madd_chars = true;
                     let rule = if let Some(next_idx) = index.next_letter_after(i) {
@@ -207,144 +221,18 @@ impl TajweedProcessor {
                     });
                 }
 
-                // --------------------------------------------------
-                // U+0670  Dagger Alif – Natural (Tabeei) Madd
-                // --------------------------------------------------
-                '\u{0670}' => {
-                    has_madd_chars = true;
-                    matches.push(RuleMatch {
-                        start_index: i,
-                        end_index: i + 1,
-                        target_letter: c,
-                        following_letter: None,
-                        rule: TajweedRule::from_type(TajweedRuleType::MaddTabeei, self.style),
-                        context: crate::utils::get_context(&chars, i, 3),
-                    });
-                }
-
-                // --------------------------------------------------
-                // U+06E5 Small Waw / U+06E6 Small Ya – Silah
-                // --------------------------------------------------
-                '\u{06E5}' | '\u{06E6}' => {
-                    has_madd_chars = true;
-                    matches.push(RuleMatch {
-                        start_index: i,
-                        end_index: i + 1,
-                        target_letter: c,
-                        following_letter: None,
-                        rule: TajweedRule::from_type(TajweedRuleType::MaddSilah, self.style),
-                        context: crate::utils::get_context(&chars, i, 3),
-                    });
-                }
-
-                // --------------------------------------------------
-                // Waqf / Wasl signs
-                // --------------------------------------------------
-
-                // U+06D6  صلى  Wasl Awla – must continue
-                '\u{06D6}' => {
-                    matches.push(RuleMatch {
-                        start_index: i,
-                        end_index: i + 1,
-                        target_letter: c,
-                        following_letter: None,
-                        rule: TajweedRule::from_type(TajweedRuleType::WaslAwla, self.style),
-                        context: crate::utils::get_context(&chars, i, 3),
-                    });
-                }
-
-                // U+06D7  قلى  Waqf Awla – preferred stop
-                '\u{06D7}' => {
-                    matches.push(RuleMatch {
-                        start_index: i,
-                        end_index: i + 1,
-                        target_letter: c,
-                        following_letter: None,
-                        rule: TajweedRule::from_type(TajweedRuleType::WaqfAwla, self.style),
-                        context: crate::utils::get_context(&chars, i, 3),
-                    });
-                }
-
-                // U+06D8  ج   Waqf Jaiz – permissible stop
-                '\u{06DA}' => {
-                    matches.push(RuleMatch {
-                        start_index: i,
-                        end_index: i + 1,
-                        target_letter: c,
-                        following_letter: None,
-                        rule: TajweedRule::from_type(TajweedRuleType::WaqfJaiz, self.style),
-                        context: crate::utils::get_context(&chars, i, 3),
-                    });
-                }
-
-                // U+06DB  ∴   Mu'anaqah – stop at one of the two
-                '\u{06DB}' => {
-                    matches.push(RuleMatch {
-                        start_index: i,
-                        end_index: i + 1,
-                        target_letter: c,
-                        following_letter: None,
-                        rule: TajweedRule::from_type(TajweedRuleType::WaqfMuanaqah, self.style),
-                        context: crate::utils::get_context(&chars, i, 3),
-                    });
-                }
-
-                // U+06D5  مـ   Waqf Lazim – compulsory stop
-                '\u{06D5}' => {
-                    matches.push(RuleMatch {
-                        start_index: i,
-                        end_index: i + 1,
-                        target_letter: c,
-                        following_letter: None,
-                        rule: TajweedRule::from_type(TajweedRuleType::WaqfLazim, self.style),
-                        context: crate::utils::get_context(&chars, i, 3),
-                    });
-                }
-
-                // U+06D9  لا   Waqf Mamnou – prohibited stop
-                '\u{06D9}' => {
-                    matches.push(RuleMatch {
-                        start_index: i,
-                        end_index: i + 1,
-                        target_letter: c,
-                        following_letter: None,
-                        rule: TajweedRule::from_type(TajweedRuleType::WaqfMamnou, self.style),
-                        context: crate::utils::get_context(&chars, i, 3),
-                    });
-                }
-
-                // --------------------------------------------------
-                // U+06DC  س  Sakt – pause without breath
-                // --------------------------------------------------
-                '\u{06DC}' => {
-                    matches.push(RuleMatch {
-                        start_index: i,
-                        end_index: i + 1,
-                        target_letter: c,
-                        following_letter: None,
-                        rule: TajweedRule::from_type(TajweedRuleType::Sakt, self.style),
-                        context: crate::utils::get_context(&chars, i, 3),
-                    });
-                }
-
-                // --------------------------------------------------
-                // Qalqalah letters
-                // --------------------------------------------------
-                c if is_qalqalah_letter(c) => {
+                // ── Qalqalah letters ─────────────────────────────────────────
+                c if letters::QALQALAH.contains(&c) => {
                     has_qalqalah = true;
                 }
 
-                // --------------------------------------------------
-                // Ra
-                // --------------------------------------------------
+                // ── Ra ───────────────────────────────────────────────────────
                 'ر' => {
                     has_ra = true;
                 }
 
-                // --------------------------------------------------
-                // Hamza forms (for Naql and Tasheel — Warsh)
-                // --------------------------------------------------
-                'ء' | 'أ' | 'إ' | 'ؤ' | 'ئ' | 'آ' => {
+                // ── Hamza forms (Naql and Tasheel — Warsh) ───────────────────
+                c if letters::HAMZA_FORMS.contains(&c) => {
                     has_hamza = true;
                 }
 

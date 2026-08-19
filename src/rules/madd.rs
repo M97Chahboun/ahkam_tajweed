@@ -64,7 +64,7 @@ pub(crate) fn detect_madd_rules_indexed(
                         target_letter: current_char,
                         following_letter: None,
                         rule: TajweedRule::from_type(madd_type, style),
-                        context: get_context(&verse_chars, i, 3),
+                        context: get_context(verse_chars, i, 3),
                     });
                 }
             }
@@ -119,11 +119,10 @@ fn detect_madd(
 
     // 2. Check for Madd Badal: hamza BEFORE madd letter (same word)
     if let Some(prev_idx) = index.prev_letter_before(current_index) {
-        if is_hamza(verse_chars[prev_idx]) {
-            if !index.has_boundary_between(prev_idx + 1, current_index) {
+        if is_hamza(verse_chars[prev_idx])
+            && !index.has_boundary_between(prev_idx + 1, current_index) {
                 return Some(TajweedRuleType::MaddBadal);
             }
-        }
     }
 
     // 3. Check for Madd Muttasil/Munfasil: madd letter followed by hamza
@@ -216,20 +215,18 @@ fn is_word_starting_with_wasl_or_sakin(
         return true;
     }
     // 2. Regular Alif without vowels followed by Lam or Saakin/Shadda letter (e.g. الجحيم, ابنوا, اتقوا)
-    if first_ch == 'ا' {
-        if !index.has_diacritic_after_mask(first_letter_idx, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA) {
+    if first_ch == 'ا'
+        && !index.has_diacritic_after_mask(first_letter_idx, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA) {
             if let Some(second_idx) = index.next_letter_after(first_letter_idx) {
-                if !index.has_boundary_between(first_letter_idx + 1, second_idx) {
-                    if verse_chars[second_idx] == 'ل'
+                if !index.has_boundary_between(first_letter_idx + 1, second_idx)
+                    && (verse_chars[second_idx] == 'ل'
                         || index.has_sukun_after(second_idx)
-                        || index.has_shadda_after(second_idx)
+                        || index.has_shadda_after(second_idx))
                     {
                         return true;
                     }
-                }
             }
         }
-    }
     // 3. Direct Saakin letter at word start
     if index.has_sukun_after(first_letter_idx) {
         return true;
@@ -289,8 +286,8 @@ pub(crate) fn detect_silah_rules_indexed(
                             let is_next_wasl = verse_chars[next_letter_idx] == '\u{0671}'
                                 || (verse_chars[next_letter_idx] == 'ا' && !index.has_diacritic_after_mask(next_letter_idx, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA));
 
-                            if has_prev_vowel && has_ha_vowel && has_next_vowel && !is_next_wasl {
-                                if !matches.iter().any(|m| (m.rule.rule_type == TajweedRuleType::MaddSilah || m.rule.rule_type == TajweedRuleType::MaddMunfasil) && m.start_index >= i && m.start_index <= i + 2) {
+                            if has_prev_vowel && has_ha_vowel && has_next_vowel && !is_next_wasl
+                                && !matches.iter().any(|m| (m.rule.rule_type == TajweedRuleType::MaddSilah || m.rule.rule_type == TajweedRuleType::MaddMunfasil) && m.start_index >= i && m.start_index <= i + 2) {
                                     let is_kubra = is_hamza(verse_chars[next_letter_idx]);
                                     let rule_type = if is_kubra {
                                         TajweedRuleType::MaddMunfasil
@@ -310,7 +307,6 @@ pub(crate) fn detect_silah_rules_indexed(
                                         context: get_context(verse_chars, i, 3),
                                     });
                                 }
-                            }
                         }
                     }
                 }

@@ -1,5 +1,6 @@
 //! Lam Al-Ta'rif (definite article) rule detection
 
+use crate::rules::letters;
 use crate::types::{RecitationStyle, RuleMatch, TajweedRule, TajweedRuleType};
 use crate::utils::*;
 
@@ -19,15 +20,6 @@ pub(crate) fn detect_lam_al_tarif_rules_indexed(
     matches: &mut Vec<RuleMatch>,
     style: RecitationStyle,
 ) {
-    // Setup letter maps
-    const IZHAR_QAMARI_LETTERS: [char; 14] = [
-        'ا', 'ب', 'غ', 'ح', 'ج', 'ك', 'و', 'خ', 'ف', 'ع', 'ق', 'ي', 'م', 'ه',
-    ];
-
-    const IDGHAM_SHAMSI_LETTERS: [char; 14] = [
-        'ت', 'ث', 'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ل', 'ن',
-    ];
-
     let mut i = 0;
     while i < verse_chars.len() {
         let ch = verse_chars[i];
@@ -38,8 +30,8 @@ pub(crate) fn detect_lam_al_tarif_rules_indexed(
                 index,
                 i,
                 matches,
-                &IZHAR_QAMARI_LETTERS,
-                &IDGHAM_SHAMSI_LETTERS,
+                letters::IZHAR_QAMARI,
+                letters::IDGHAM_SHAMSI,
                 style,
             );
         }

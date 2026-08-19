@@ -1,5 +1,6 @@
 //! Qalqalah (bouncing) rule detection refined
 
+use crate::rules::letters;
 use crate::{
     types::{RecitationStyle, RuleMatch, TajweedRule, TajweedRuleType},
     utils::{get_context, is_punctuation, is_tajweed_ignorable, VerseIndex},
@@ -21,10 +22,8 @@ pub(crate) fn detect_qalqalah_rules_indexed(
     matches: &mut Vec<RuleMatch>,
     style: RecitationStyle,
 ) {
-    const QALQALAH_LETTERS: [char; 5] = ['ق', 'ط', 'ب', 'ج', 'د'];
-
     for (i, &ch) in verse_chars.iter().enumerate() {
-        if QALQALAH_LETTERS.contains(&ch) {
+        if letters::QALQALAH.contains(&ch) {
             // Check if the letter is functionally "Sakin" (either written or via Waqf)
             if let Some(qalqalah_type) = check_qalqalah_type(verse_chars, index, i) {
                 let mut end_idx = i + 1;
@@ -67,7 +66,7 @@ fn check_qalqalah_type(
     if is_verse_end(verse_chars, idx) {
         // Qalqalah Akbar: letter has Shadda and is at Waqf (strongest echo)
         // Shadda appears as U+0651 after the letter
-        let has_shadda = verse_chars[idx + 1..].iter().any(|&c| c == '\u{0651}');
+        let has_shadda = verse_chars[idx + 1..].contains(&'\u{0651}');
         if has_shadda {
             return Some(TajweedRuleType::QalqalahAkbar);
         }
