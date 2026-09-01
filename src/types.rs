@@ -73,9 +73,9 @@ pub enum TajweedRuleType {
     // أحكام المدود (Madd Rules - Enhanced for Warsh)
     /// المد الطبيعي - Madd Tabeei (2 harakaat)
     MaddTabeei,
-    /// المد المتصل - Madd Muttasil (4-5 harakaat, Warsh: 4-6)
+    /// المد المتصل - Madd Muttasil (Hafs: 4-5 harakaat, Warsh/Azraq: 6 only)
     MaddMuttasil,
-    /// المد المنفصل - Madd Munfasil (2-4-5 harakaat, Warsh: 4-6)
+    /// المد المنفصل - Madd Munfasil (Hafs: 2-4-5 harakaat, Warsh/Azraq: 6 only)
     MaddMunfasil,
     /// المد اللازم - Madd Lazim (6 harakaat)
     MaddLazim,
@@ -85,11 +85,11 @@ pub enum TajweedRuleType {
     MaddLin,
     /// مد البدل - Madd Badal (2 harakaat, Warsh: 4-6)
     MaddBadal,
-    /// صلة الهاء - Madd Silah (Warsh specific)
+    /// صلة الهاء - Madd Silah (all narrations; Haa of the pronoun between two voweled letters)
     MaddSilah,
 
-    // أحكام الراءات (Ra Rules - Warsh specific)
-    /// ترقيق الراء - Tarqeeq Ra (Warsh)
+    // أحكام الراءات (Ra Rules - agreed positions, plus Warsh's own tarqeeq)
+    /// ترقيق الراء - Tarqeeq Ra (agreed upon; Warsh adds fatha/damma Ra after kasra or sakin Ya)
     TarqeeqRa,
     /// تفخيم الراء - Tafkhim Ra
     TafkhimRa,
@@ -154,7 +154,11 @@ pub struct TajweedRule {
     pub english_name: &'static str,
     /// Detailed description in Arabic
     pub description_ar: &'static str,
-    /// Whether this is Warsh-specific
+    /// Whether this occurrence is read that way by Warsh alone.
+    ///
+    /// Table-level default for most rules; set per match where one rule type
+    /// covers both agreed-upon and Warsh-only positions (see
+    /// [`TajweedRule::with_warsh_specific`]).
     pub warsh_specific: bool,
     /// Madd length in Warsh variant: (min, max) in harakaat
     pub madd_length_warsh: Option<(u8, u8)>,
@@ -360,17 +364,17 @@ static RULE_TABLE: &[(TajweedRuleType, RuleMeta)] = &[
         arabic_name: "المد المتصل",
         english_name: "Madd Muttasil",
         desc_hafs: "المد المتصل: 4 أو 5 حركات في رواية حفص.",
-        desc_warsh: "المد المتصل: 4 أو 5 أو 6 حركات في رواية ورش (الأشهر: 6).",
+        desc_warsh: "المد المتصل: 6 حركات (الإشباع) في رواية ورش من طريق الأزرق، وليس له غيرها؛ ولا إشباع من طريق الأصبهاني.",
         warsh_specific: false,
-        madd_length_warsh: Some((4, 6)),
+        madd_length_warsh: Some((6, 6)),
     }),
     (TajweedRuleType::MaddMunfasil, RuleMeta {
         arabic_name: "المد المنفصل",
         english_name: "Madd Munfasil",
         desc_hafs: "المد المنفصل: 2 أو 4 أو 5 حركات في رواية حفص.",
-        desc_warsh: "المد المنفصل: 4 أو 5 أو 6 حركات في رواية ورش (الأشهر: 4).",
+        desc_warsh: "المد المنفصل: 6 حركات (الإشباع) في رواية ورش من طريق الأزرق، وليس له غيرها؛ أما من طريق الأصبهاني فحركتان أو ثلاث أو أربع ولا إشباع له.",
         warsh_specific: false,
-        madd_length_warsh: Some((4, 6)),
+        madd_length_warsh: Some((6, 6)),
     }),
     (TajweedRuleType::MaddLazim, RuleMeta {
         arabic_name: "المد اللازم",
@@ -407,18 +411,18 @@ static RULE_TABLE: &[(TajweedRuleType, RuleMeta)] = &[
     (TajweedRuleType::MaddSilah, RuleMeta {
         arabic_name: "صلة الهاء",
         english_name: "Madd Silah",
-        desc_hafs: "صلة الهاء الساكنة (تحويل ه الساكنة إلى حرف مد).",
-        desc_warsh: "صلة الهاء الساكنة (تحويل ه الساكنة إلى حرف مد).",
-        warsh_specific: true,
+        desc_hafs: "صلة هاء الضمير: هاء الكناية متحركة بين متحركين تُوصَل بواو بعد الضم أو بياء بعد الكسر بمقدار حركتين (صلة صغرى). وهي ثابتة عند جميع القراء مع اختلافهم في التفصيل.",
+        desc_warsh: "صلة هاء الضمير: هاء الكناية متحركة بين متحركين تُوصَل بواو بعد الضم أو بياء بعد الكسر بمقدار حركتين (صلة صغرى). وهي ثابتة عند جميع القراء مع اختلافهم في التفصيل، وليست من خصائص ورش.",
+        warsh_specific: false,
         madd_length_warsh: None,
     }),
     // ── Ra / Allah Name ──────────────────────────────────────────────────────
     (TajweedRuleType::TarqeeqRa, RuleMeta {
         arabic_name: "ترقيق الراء",
         english_name: "Tarqeeq Ra",
-        desc_hafs: "ترقيق الراء في رواية ورش في مواضع خاصة.",
-        desc_warsh: "ترقيق الراء في رواية ورش في مواضع خاصة.",
-        warsh_specific: true,
+        desc_hafs: "ترقيق الراء: الراء المكسورة، والراء الساكنة بعد كسر أصلي أو بعد ياء ساكنة — وهو متفق عليه بين القراء.",
+        desc_warsh: "ترقيق الراء: يشمل المواضع المتفق عليها (الراء المكسورة، والساكنة بعد كسر أو ياء ساكنة)، ويزيد ورش ترقيق الراء المفتوحة أو المضمومة إذا سبقها كسر أو ياء ساكنة ما لم يقع استثناء يوجب التفخيم. ويميّز الحقل warsh_specific موضع ورش الخاص من الموضع المتفق عليه.",
+        warsh_specific: false,
         madd_length_warsh: None,
     }),
     (TajweedRuleType::TafkhimRa, RuleMeta {
@@ -582,6 +586,18 @@ impl TajweedRule {
             warsh_specific: meta.warsh_specific,
             madd_length_warsh: meta.madd_length_warsh,
         }
+    }
+
+    /// Override the narration scope of a single occurrence.
+    ///
+    /// A few rules mix positions every reader agrees on with positions only
+    /// Warsh reads that way — Ra Tarqeeq is the clearest case: a Ra carrying a
+    /// kasra is thinned by all the qurra', while a Ra with fatha/damma after a
+    /// kasra or a sakin Ya is Warsh's own. The table holds the shared default
+    /// and detection flags the Warsh-only occurrences with this.
+    pub fn with_warsh_specific(mut self, warsh_specific: bool) -> Self {
+        self.warsh_specific = warsh_specific;
+        self
     }
 }
 
