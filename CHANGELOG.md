@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **المد المنفصل / المد المتصل في رواية ورش** (#4): via طريق الأزرق both are
+  ishbaa' — six harakaat only — instead of the 4/5/6 range previously reported.
+  Descriptions now name the ṭarīq (الأزرق vs الأصبهاني).
+- **صلة الهاء** (#5): no longer flagged as Warsh-specific — it is read by all
+  qurra' with differences in detail. The description no longer calls the Haa
+  *sakinah*; it is the voweled Haa of the pronoun between two voweled letters
+  (matching what detection already did).
+- **ترقيق الراء** (#6): a Ra carrying a kasra (e.g. `لِنُرِيَهُۥ`, 17:1) is thinned by
+  every reader and is no longer labelled Warsh-specific. `TarqeeqRa` now reports
+  its narration scope **per occurrence**: agreed positions (kasra Ra, sakin Ra
+  after a kasra or a sakin Ya) are unflagged, while Warsh's own positions
+  (fatha/damma Ra after a kasra or a sakin Ya) keep `warsh_specific = true`.
+
+### Added
+
+- `TajweedRule::with_warsh_specific` — override the narration scope of a single
+  occurrence, for rules that mix agreed-upon and Warsh-only positions.
+- `rules::ra::TarqeeqScope` — `Agreed` / `WarshSpecific` classification produced
+  by Ra tarqeeq detection.
+- `src/reported_issues_tests.rs` — 25 regression tests covering the reported
+  verse (17:1) and the surrounding cases in both narrations.
+
 ## [0.2.0] - 2024-01-14
 
 ### Changed
