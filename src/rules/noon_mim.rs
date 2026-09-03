@@ -294,6 +294,8 @@ pub(crate) fn detect_naql_rules_indexed(
     let madd_letters = letters::MADD_LETTERS;
     let hamza_forms = letters::HAMZA_FORMS;
 
+    detect_naql_lam_al_tarif_indexed(verse_chars, index, matches, style);
+
     let mut i = 0;
     while i < verse_chars.len() {
         // Find a word boundary (space)
@@ -325,6 +327,83 @@ pub(crate) fn detect_naql_rules_indexed(
             }
         }
         i += 1;
+    }
+}
+
+/// النقل في لام التعريف — the one position where Warsh transfers a vowel
+/// *inside* a word rather than across a word boundary.
+///
+/// When the definite article meets a hamzat qat' (`الْإِيمَٰن`, `الْأَمْر`,
+/// `الْأَرْض`), Warsh moves the hamza's vowel onto the sakin Lam and drops the
+/// hamza: `لِايمَٰن`, `لَامْر`. Two spellings reach the analyser:
+///
+/// * **ordinary orthography** — `الْإِيمَٰن`: the Lam still carries its sukun and
+///   the hamza is still written.
+/// * **Warsh mushaf orthography** — `اُ۬لِايمَٰنَ`: the transfer is already part of
+///   the script, so the Lam carries the hamza's vowel (a Lam of the article is
+///   otherwise never voweled) and all that is left of the hamza is its silent
+///   Alif seat — the one the printed mushaf marks with a dot underneath.
+///
+/// Reported as GitHub issue #8 (سورة الحجرات 49:7), where neither spelling was
+/// detected because Naql was only ever looked for across a space.
+fn detect_naql_lam_al_tarif_indexed(
+    verse_chars: &[char],
+    index: &VerseIndex,
+    matches: &mut Vec<RuleMatch>,
+    style: RecitationStyle,
+) {
+    let vowels = crate::utils::DIAC_FATHA | crate::utils::DIAC_DAMMA | crate::utils::DIAC_KASRA;
+
+    for (i, &ch) in verse_chars.iter().enumerate() {
+        // The article starts with a plain Alif or with Hamzat Wasl.
+        if ch != 'ا' && ch != '\u{0671}' {
+            continue;
+        }
+
+        // Only an article — not an Alif sitting inside a word root. The article
+        // may still be prefixed by و ف ب ك ل (وَالْأَمْر).
+        if let Some(prev_idx) = index.prev_letter_before(i) {
+            if !index.has_boundary_between(prev_idx + 1, i)
+                && !matches!(verse_chars[prev_idx], 'و' | 'ف' | 'ب' | 'ك' | 'ل')
+            {
+                continue;
+            }
+        }
+
+        let Some(lam_idx) = index.next_letter_after(i) else {
+            continue;
+        };
+        if verse_chars[lam_idx] != 'ل' || index.has_boundary_between(i + 1, lam_idx) {
+            continue;
+        }
+
+        let Some(after_idx) = index.next_letter_after(lam_idx) else {
+            continue;
+        };
+        if index.has_boundary_between(lam_idx + 1, after_idx) {
+            continue;
+        }
+
+        let after = verse_chars[after_idx];
+        let is_written_hamza =
+            index.has_sukun_after(lam_idx) && letters::HAMZA_FORMS.contains(&after);
+        // A voweled article Lam followed by a bare Alif is the transfer already
+        // spelled out; a Shadda would make it a sun letter, not a Naql.
+        let is_transferred = index.has_diacritic_after_mask(lam_idx, vowels)
+            && !index.has_shadda_after(lam_idx)
+            && after == 'ا'
+            && index.diacritic_mask_at(after_idx) & crate::utils::DIAC_ANY == 0;
+
+        if is_written_hamza || is_transferred {
+            matches.push(RuleMatch {
+                start_index: lam_idx,
+                end_index: after_idx + 1,
+                target_letter: verse_chars[lam_idx],
+                following_letter: Some(after),
+                rule: TajweedRule::from_type(TajweedRuleType::Naql, style),
+                context: get_context(verse_chars, lam_idx, 4),
+            });
+        }
     }
 }
 

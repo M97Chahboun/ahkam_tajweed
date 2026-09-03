@@ -287,14 +287,20 @@ impl TajweedProcessor {
         // New rules: Ghunnah, Naql, Tasheel, Mutajanisayn, Mutaqaribayn, HamzatWasl
         // (GhunnahMushadda is already emitted inside detect_noon_mim_rules_indexed above)
 
-        if has_hamza {
-            // Naql: Warsh — transfer Hamza vowel to preceding Sakin across word boundary
+        // Naql: Warsh — transfer of the Hamza vowel onto the preceding Sakin,
+        // across a word boundary or onto the Lam of the definite article. In the
+        // Warsh mushaf the transfer is already spelled out and no Hamza character
+        // survives, so a Lam alone is enough to make the pass worth running.
+        if has_hamza || has_lam {
             rules::noon_mim::detect_naql_rules_indexed(
                 &chars,
                 &index,
                 &mut matches,
                 self.style,
             );
+        }
+
+        if has_hamza {
             // Tasheel: Warsh — soften second Hamza when two consecutive Hamzas in same word
             rules::noon_mim::detect_tasheel_rules_indexed(
                 &chars,
