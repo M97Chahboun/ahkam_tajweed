@@ -95,7 +95,7 @@ mod comprehensive_tests {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
         
         // Madd Tabeei - natural madd
-        let matches = processor.process_verse("كَانَ");
+        let matches = processor.process_verse("كَانَ ٱلنَّاسُ");
         assert!(has_rule(&matches, TajweedRuleType::MaddTabeei));
         
         // Madd Muttasil - connected madd (Alif + Hamza in same word)
@@ -106,9 +106,12 @@ mod comprehensive_tests {
         let matches = processor.process_verse("مَا أَنْتَ");
         assert!(has_rule(&matches, TajweedRuleType::MaddMunfasil));
         
-        // Madd Lazim - required madd (letter with shadda)
-        let matches = processor.process_verse("أَمَّا"); // Alif followed by Mim with Shadda
+        // Madd Lazim - required madd (Madd letter followed by a shadda)
+        let matches = processor.process_verse("وَلَا ٱلضَّآلِّينَ"); // Alif then Lam+Shadda
         assert!(has_rule(&matches, TajweedRuleType::MaddLazim));
+        // أَمَّا carries the shadda *before* the Alif — natural madd, not Lazim
+        let matches = processor.process_verse("أَمَّا");
+        assert!(!has_rule(&matches, TajweedRuleType::MaddLazim));
         
         // Madd Lin - soft madd (Waw/Ya with Fatha followed by Sukun)
         let matches = processor.process_verse("لَيْسَ"); // Ya with Fatha followed by Sukun
@@ -250,9 +253,13 @@ mod comprehensive_tests {
         let matches = processor.process_verse("لَيْسَ");
         assert!(has_rule(&matches, TajweedRuleType::MaddLin) || has_rule(&matches, TajweedRuleType::MaddTabeei));
         
-        // "وَقْفٌ" - Waw with Fatha followed by Sukun on Qaf
-        let matches = processor.process_verse("وَقْفٌ");
+        // "خَوْفٍ" - Fatha on the Kha, then a Sakin Waw
+        let matches = processor.process_verse("خَوْفٍ");
         assert!(has_rule(&matches, TajweedRuleType::MaddLin) || has_rule(&matches, TajweedRuleType::MaddTabeei));
+
+        // "وَقْفٌ" opens with a voweled Waw — a consonant, so no Madd Lin
+        let matches = processor.process_verse("وَقْفٌ");
+        assert!(!has_rule(&matches, TajweedRuleType::MaddLin));
     }
 
     #[test]

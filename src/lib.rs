@@ -108,6 +108,9 @@ mod reported_issues_tests;
 #[cfg(test)]
 mod comprehensive_tests;
 
+#[cfg(test)]
+mod corpus_diff_tests;
+
 // Re-export main types and processor for convenient access
 pub use processor::TajweedProcessor;
 pub use types::{RecitationStyle, RuleMatch, TajweedRule, TajweedRuleType};

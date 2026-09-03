@@ -51,6 +51,17 @@ pub const QALQALAH: &[char] = &['ق', 'ط', 'ب', 'ج', 'د'];
 /// أحرف المد الأصلية — Primary Madd carrier letters (Alif, Waw, Ya, Arabic Ya)
 pub const MADD_CARRIERS: &[char] = &['ا', 'و', 'ي', '\u{06CC}'];
 
+/// Every character a Maddah sign can sit on as a Madd letter — the three Madd
+/// letters plus the reduced forms the Uthmani script writes them with:
+/// superscript Alef (ٰ), Alef Maksura (ى), small Waw (ۥ) and small Yeh (ۦ).
+///
+/// A Maddah over anything *else* is not a Madd letter at all but a disjoined
+/// letter opening a surah (الٓمٓ، صٓ، نٓ), whose spelled-out name holds a
+/// six-count Madd Lazim Harfi.
+pub const MADD_CARRIERS_ALL: &[char] = &[
+    'ا', 'و', 'ي', '\u{06CC}', '\u{0649}', '\u{0670}', '\u{06E5}', '\u{06E6}',
+];
+
 // ─── Hamza forms ─────────────────────────────────────────────────────────────
 
 /// أشكال الهمزة — All Unicode Hamza forms (for Naql and Tasheel detection)
