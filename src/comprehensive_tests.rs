@@ -42,14 +42,22 @@ mod comprehensive_tests {
     #[test]
     fn test_comprehensive_tanwin_rules() {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
-        
-        // Tanwin with Izhar
+
+        // Tanwin followed by a throat letter (ع) — إظهار حلقي
         let matches = processor.process_verse("رَجُلًا عَدْلًا");
-        assert!(has_rule(&matches, TajweedRuleType::IkhfaaHaqiqi)); // Tanwin with K
-        
-        // Tanwin with Idgham
+        assert!(has_rule(&matches, TajweedRuleType::IzharHalqi));
+
+        // Tanwin followed by one of (ينمو) — إدغام بغنة
         let matches = processor.process_verse("كِتَابًا يَسْمَعُونَ");
-        assert!(has_rule(&matches, TajweedRuleType::IkhfaaHaqiqi)); // Tanwin with Y
+        assert!(has_rule(&matches, TajweedRuleType::IdghamBiGhunnah));
+
+        // Tanwin followed by one of the fifteen Ikhfaa letters (ك) — إخفاء حقيقي
+        let matches = processor.process_verse("كِتَابًا كَرِيمًا");
+        assert!(has_rule(&matches, TajweedRuleType::IkhfaaHaqiqi));
+
+        // Tanwin followed by (ب) — إقلاب
+        let matches = processor.process_verse("سَمِيعٌ بَصِيرٌ");
+        assert!(has_rule(&matches, TajweedRuleType::Iqlab));
     }
 
     #[test]
@@ -137,9 +145,14 @@ mod comprehensive_tests {
     #[test]
     fn test_comprehensive_allah_name_rules() {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
-        
-        // Tafkhim Lafuljalala - emphasis of Allah's name
+
+        // بِسْمِ اللَّهِ — the Jalalah follows a Kasra, so its Lam is thinned.
         let matches = processor.process_verse("بِسْمِ اللَّهِ");
+        assert!(has_rule(&matches, TajweedRuleType::TarqeeqLafuljalala));
+        assert!(!has_rule(&matches, TajweedRuleType::TafkhimLafuljalala));
+
+        // قَالَ اللَّهُ — after a Fatha the Lam keeps its تفخيم.
+        let matches = processor.process_verse("قَالَ اللَّهُ");
         assert!(has_rule(&matches, TajweedRuleType::TafkhimLafuljalala));
     }
 
@@ -195,7 +208,8 @@ mod comprehensive_tests {
             matches.iter().map(|m| m.rule.rule_type).collect();
         
         assert!(unique_types.len() >= 4, "Complex verse should have multiple rule types");
-        assert!(has_rule(&matches, TajweedRuleType::TafkhimLafuljalala));
+        // اللَّهِ here is preceded by the Kasra of بِسْمِ — ترقيق, not تفخيم.
+        assert!(has_rule(&matches, TajweedRuleType::TarqeeqLafuljalala));
         assert!(has_rule(&matches, TajweedRuleType::TafkhimRa));
     }
 
@@ -209,8 +223,14 @@ mod comprehensive_tests {
         // Whitespace only
         assert!(processor.process_verse("   \t\n  ").is_empty());
         
-        // Single non-trigger character
-        assert!(processor.process_verse("خ").is_empty());
+        // Single non-trigger character (Seen carries no rule on its own)
+        assert!(processor.process_verse("س").is_empty());
+
+        // ...whereas a lone Isti'la letter is a trigger: خ is read with تفخيم.
+        assert!(has_rule(
+            &processor.process_verse("خ"),
+            TajweedRuleType::TafkhimHuruf
+        ));
     }
 
     #[test]

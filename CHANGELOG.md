@@ -22,14 +22,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   after a kasra or a sakin Ya) are unflagged, while Warsh's own positions
   (fatha/damma Ra after a kasra or a sakin Ya) keep `warsh_specific = true`.
 
+- **النقل** (#8): Naql was only ever looked for across a word boundary, so the
+  transfer onto the Lam of the definite article — the case the README already
+  documented — was never reported. Both spellings are now detected: the ordinary
+  one (`الْإِيمَٰن`, sakin Lam + written hamza) and the Warsh mushaf one
+  (`اُ۬لِايمَٰنَ`, where the Lam already carries the transferred vowel and only the
+  silent Alif of the hamza is left). Reported on سورة الحجرات (49:7).
+- **`src/comprehensive_tests.rs` never ran**: the file was never declared in
+  `lib.rs`, so its 17 tests had never been compiled. It is now part of the suite,
+  and four assertions that contradicted the tajweed were corrected — tanwin
+  before ع is إظهار حلقي and before ي is إدغام بغنة (both were asserted as
+  إخفاء), لفظ الجلالة after a kasra (`بِسْمِ اللَّهِ`) is ترقيق not تفخيم, and a lone
+  خ is a تفخيم trigger rather than an empty result.
+
 ### Added
 
 - `TajweedRule::with_warsh_specific` — override the narration scope of a single
   occurrence, for rules that mix agreed-upon and Warsh-only positions.
 - `rules::ra::TarqeeqScope` — `Agreed` / `WarshSpecific` classification produced
   by Ra tarqeeq detection.
-- `src/reported_issues_tests.rs` — 25 regression tests covering the reported
-  verse (17:1) and the surrounding cases in both narrations.
+- `src/reported_issues_tests.rs` — 36 regression tests covering the reported
+  verses (17:1 and 49:7) and the surrounding cases in both narrations.
 
 ## [0.2.0] - 2024-01-14
 

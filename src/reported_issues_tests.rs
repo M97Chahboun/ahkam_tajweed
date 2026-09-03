@@ -1,4 +1,4 @@
-//! Regression tests for tester-reported issues (GitHub #4, #5, #6)
+//! Regression tests for tester-reported issues (GitHub #4, #5, #6, #8)
 //!
 //! All three reports come from the same verse — سورة الإسراء (17:1) in the
 //! Warsh (Azraq) orthography — and all three are about *narration attribution*
@@ -13,6 +13,13 @@
 //! * **#6 ترقيق الراء** — a Ra carrying a kasra (لِنُرِيَهُۥ) is thinned by every
 //!   reader; only a *fatha/damma* Ra after a kasra or a sakin Ya is Warsh's own
 //!   tarqeeq. The occurrence-level flag must reflect that.
+//!
+//! **#8 النقل** comes from a different verse — سورة الحجرات (49:7) — and is a
+//! *missing rule*, not a mislabelled one: Warsh transfers the vowel of a
+//! hamzat qat' onto the sakin Lam of the definite article (الْإِيمَٰن →
+//! لِايمَٰن). The Warsh mushaf already writes the result — the Lam carries the
+//! transferred vowel and the hamza is left as a bare, silent Alif — so
+//! detection has to recognise both that spelling and the ordinary one.
 
 #[cfg(test)]
 mod reported_issues_tests {
@@ -21,6 +28,9 @@ mod reported_issues_tests {
 
     /// سورة الإسراء (17:1) exactly as submitted in the three reports.
     const AL_ISRA_1: &str = "سُبْحَٰنَ اَ۬لذِےٓ أَسْر۪ىٰ بِعَبْدِهِۦ لَيْلاٗ مِّنَ اَ۬لْمَسْجِدِ اِ۬لْحَرَامِ إِلَى اَ۬لْمَسْجِدِ اِ۬لَاقْصَا اَ۬لذِے بَٰرَكْنَا حَوْلَهُۥ لِنُرِيَهُۥ مِنَ اٰيَٰتِنَآۖ إِنَّهُۥ هُوَ اَ۬لسَّمِيعُ اُ۬لْبَصِيرُۖ";
+
+    /// سورة الحجرات (49:7) exactly as submitted in report #8.
+    const AL_HUJURAT_7: &str = "وَاعْلَمُوٓاْ أَنَّ فِيكُمْ رَسُولَ اَ۬للَّهِ لَوْ يُطِيعُكُمْ فِے كَثِيرٖ مِّنَ اَ۬لَامْرِ لَعَنِتُّمْۖ وَلَٰكِنَّ اَ۬للَّهَ حَبَّبَ إِلَيْكُمُ اُ۬لِايمَٰنَ وَزَيَّنَهُۥ فِے قُلُوبِكُمْ وَكَرَّهَ إِلَيْكُمُ اُ۬لْكُفْرَ وَالْفُسُوقَ وَالْعِصْيَانَۖ أُوْلَٰٓئِكَ هُمُ اُ۬لرَّٰشِدُونَ";
 
     fn analyze(verse: &str, style: RecitationStyle) -> Vec<RuleMatch> {
         TajweedProcessor::new(style).process_verse(verse)
@@ -392,6 +402,112 @@ mod reported_issues_tests {
         assert!(
             tarqeeq.iter().any(|m| m.rule.warsh_specific),
             "17:1 has a Warsh-only tarqeeq (اُ۬لْبَصِيرُ)"
+        );
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // Issue #8 — النقل: نقل حركة همزة القطع إلى لام التعريف الساكنة (ورش)
+    // ═════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn issue8_naql_detected_on_lam_al_tarif_written_in_warsh_orthography() {
+        // اُ۬لِايمَٰنَ — the Lam already carries the kasra of the elided hamza.
+        let warsh = analyze(AL_HUJURAT_7, RecitationStyle::Warsh);
+        let naql = match_at(&warsh, TajweedRuleType::Naql, "لِا")
+            .expect("النقل في (اُ۬لِايمَٰنَ) must be reported");
+        assert_eq!(naql.target_letter, 'ل', "the Lam receives the transferred vowel");
+    }
+
+    #[test]
+    fn issue8_naql_detected_for_the_fatha_form_in_the_same_verse() {
+        // اَ۬لَامْرِ — same rule, the hamza of (الأمر) carried a fatha.
+        let warsh = analyze(AL_HUJURAT_7, RecitationStyle::Warsh);
+        assert!(
+            match_at(&warsh, TajweedRuleType::Naql, "لَامْ").is_some(),
+            "النقل في (اَ۬لَامْرِ) must be reported"
+        );
+    }
+
+    #[test]
+    fn issue8_al_hujurat_7_has_exactly_two_naql_positions() {
+        let warsh = analyze(AL_HUJURAT_7, RecitationStyle::Warsh);
+        let naql = of_type(&warsh, TajweedRuleType::Naql);
+        assert_eq!(
+            naql.len(),
+            2,
+            "49:7 has النقل twice — اَ۬لَامْرِ and اُ۬لِايمَٰنَ — found: {:?}",
+            naql.iter().map(|m| m.context.as_str()).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn issue8_naql_detected_on_lam_al_tarif_in_ordinary_orthography() {
+        // The same word as normally written: sakin Lam followed by hamzat qat'.
+        let warsh = analyze("إِلَيْكُمُ الْإِيمَانَ", RecitationStyle::Warsh);
+        let naql = of_type(&warsh, TajweedRuleType::Naql);
+        assert_eq!(naql.len(), 1, "الْإِيمَان → النقل عند ورش");
+        assert_eq!(naql[0].target_letter, 'ل');
+        assert_eq!(naql[0].following_letter, Some('إ'));
+    }
+
+    #[test]
+    fn issue8_naql_is_warsh_only() {
+        let hafs = analyze(AL_HUJURAT_7, RecitationStyle::Hafs);
+        assert!(
+            !has_rule(&hafs, TajweedRuleType::Naql),
+            "حفص يحقق الهمزة ولا ينقل"
+        );
+        assert!(!has_rule(
+            &analyze("الْإِيمَانَ", RecitationStyle::Hafs),
+            TajweedRuleType::Naql
+        ));
+    }
+
+    #[test]
+    fn issue8_naql_is_flagged_warsh_specific() {
+        let warsh = analyze(AL_HUJURAT_7, RecitationStyle::Warsh);
+        let naql = of_type(&warsh, TajweedRuleType::Naql);
+        assert!(!naql.is_empty());
+        assert!(
+            naql.iter().all(|m| m.rule.warsh_specific),
+            "النقل من خصائص ورش"
+        );
+    }
+
+    #[test]
+    fn issue8_article_before_a_plain_letter_has_no_naql() {
+        // اُ۬لْكُفْرَ — sakin Lam, but the next letter is a Kaf, not a hamza.
+        let warsh = analyze("إِلَيْكُمُ اُ۬لْكُفْرَ", RecitationStyle::Warsh);
+        assert!(!has_rule(&warsh, TajweedRuleType::Naql));
+    }
+
+    #[test]
+    fn issue8_sun_letter_article_has_no_naql() {
+        let warsh = analyze("هُمُ اُ۬لرَّٰشِدُونَ", RecitationStyle::Warsh);
+        assert!(!has_rule(&warsh, TajweedRuleType::Naql));
+    }
+
+    #[test]
+    fn issue8_a_madd_alif_after_lam_is_not_naql() {
+        // قَالَا — Lam + fatha + Alif is a plain madd, not an article at all.
+        let warsh = analyze("قَالَا لَنْ", RecitationStyle::Warsh);
+        assert!(!has_rule(&warsh, TajweedRuleType::Naql));
+    }
+
+    #[test]
+    fn issue8_cross_word_naql_still_detected() {
+        // Pre-existing behaviour must survive: sakin letter + hamza of the next word.
+        let warsh = analyze("قَدْ أَفْلَحَ", RecitationStyle::Warsh);
+        assert!(has_rule(&warsh, TajweedRuleType::Naql));
+    }
+
+    #[test]
+    fn issue8_naql_description_names_lam_al_tarif() {
+        let rule = TajweedRule::from_type(TajweedRuleType::Naql, RecitationStyle::Warsh);
+        assert!(
+            rule.description_ar.contains("لام التعريف"),
+            "the description should tell the reader where Naql shows up: {}",
+            rule.description_ar
         );
     }
 }
