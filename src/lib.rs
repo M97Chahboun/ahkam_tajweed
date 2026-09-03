@@ -76,7 +76,8 @@
 //! - Idgham Mutaqaribayn (إدغام المتقاربين) - (ق+ك, ل+ر)
 //!
 //! ### Warsh-Specific Rules (أحكام ورش الخاصة)
-//! - An-Naql (النقل) - vowel transfer from Hamza Qat'a to preceding Saakin
+//! - An-Naql (النقل) - vowel transfer from Hamza Qat'a to preceding Saakin, across a word
+//!   boundary or onto the Lam of the definite article (both orthographies)
 //! - Tasheel Al-Hamza (تسهيل الهمزة) - softening consecutive Hamzas
 //!
 //! ## Recitation Styles
@@ -103,6 +104,12 @@ mod tajweed_alignment_tests;
 
 #[cfg(test)]
 mod reported_issues_tests;
+
+#[cfg(test)]
+mod comprehensive_tests;
+
+#[cfg(test)]
+mod corpus_diff_tests;
 
 // Re-export main types and processor for convenient access
 pub use processor::TajweedProcessor;

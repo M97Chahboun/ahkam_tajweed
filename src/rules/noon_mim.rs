@@ -162,9 +162,14 @@ fn check_noon_mim(
     style: RecitationStyle,
 ) {
     let has_sukun_or_tanwin = index.has_sukun_after(i) || index.has_tanwin_after(i);
-    let heuristic_noon_sakinah = current_char == 'ن' && index.diacritic_mask_at(i) == 0;
+    // A Noon or Mim carrying no mark at all is Sakinah. The Uthmani script
+    // relies on this: it leaves the Sukun off a Mim Sakinah standing before
+    // م or ب (قُلُوبِهِم مَّرَضٌ, هُم بِمُؤْمِنِينَ), because the following
+    // Shadda / Ikhfaa mark already carries the information.
+    let unmarked_sakinah =
+        matches!(current_char, 'ن' | 'م') && index.diacritic_mask_at(i) == 0;
 
-    if has_sukun_or_tanwin || heuristic_noon_sakinah {
+    if has_sukun_or_tanwin || unmarked_sakinah {
         if let Some(next_char_index) = index.next_letter_after(i) {
             let following_letter = verse_chars[next_char_index];
 
@@ -294,6 +299,8 @@ pub(crate) fn detect_naql_rules_indexed(
     let madd_letters = letters::MADD_LETTERS;
     let hamza_forms = letters::HAMZA_FORMS;
 
+    detect_naql_lam_al_tarif_indexed(verse_chars, index, matches, style);
+
     let mut i = 0;
     while i < verse_chars.len() {
         // Find a word boundary (space)
@@ -325,6 +332,83 @@ pub(crate) fn detect_naql_rules_indexed(
             }
         }
         i += 1;
+    }
+}
+
+/// النقل في لام التعريف — the one position where Warsh transfers a vowel
+/// *inside* a word rather than across a word boundary.
+///
+/// When the definite article meets a hamzat qat' (`الْإِيمَٰن`, `الْأَمْر`,
+/// `الْأَرْض`), Warsh moves the hamza's vowel onto the sakin Lam and drops the
+/// hamza: `لِايمَٰن`, `لَامْر`. Two spellings reach the analyser:
+///
+/// * **ordinary orthography** — `الْإِيمَٰن`: the Lam still carries its sukun and
+///   the hamza is still written.
+/// * **Warsh mushaf orthography** — `اُ۬لِايمَٰنَ`: the transfer is already part of
+///   the script, so the Lam carries the hamza's vowel (a Lam of the article is
+///   otherwise never voweled) and all that is left of the hamza is its silent
+///   Alif seat — the one the printed mushaf marks with a dot underneath.
+///
+/// Reported as GitHub issue #8 (سورة الحجرات 49:7), where neither spelling was
+/// detected because Naql was only ever looked for across a space.
+fn detect_naql_lam_al_tarif_indexed(
+    verse_chars: &[char],
+    index: &VerseIndex,
+    matches: &mut Vec<RuleMatch>,
+    style: RecitationStyle,
+) {
+    let vowels = crate::utils::DIAC_FATHA | crate::utils::DIAC_DAMMA | crate::utils::DIAC_KASRA;
+
+    for (i, &ch) in verse_chars.iter().enumerate() {
+        // The article starts with a plain Alif or with Hamzat Wasl.
+        if ch != 'ا' && ch != '\u{0671}' {
+            continue;
+        }
+
+        // Only an article — not an Alif sitting inside a word root. The article
+        // may still be prefixed by و ف ب ك ل (وَالْأَمْر).
+        if let Some(prev_idx) = index.prev_letter_before(i) {
+            if !index.has_boundary_between(prev_idx + 1, i)
+                && !matches!(verse_chars[prev_idx], 'و' | 'ف' | 'ب' | 'ك' | 'ل')
+            {
+                continue;
+            }
+        }
+
+        let Some(lam_idx) = index.next_letter_after(i) else {
+            continue;
+        };
+        if verse_chars[lam_idx] != 'ل' || index.has_boundary_between(i + 1, lam_idx) {
+            continue;
+        }
+
+        let Some(after_idx) = index.next_letter_after(lam_idx) else {
+            continue;
+        };
+        if index.has_boundary_between(lam_idx + 1, after_idx) {
+            continue;
+        }
+
+        let after = verse_chars[after_idx];
+        let is_written_hamza =
+            index.has_sukun_after(lam_idx) && letters::HAMZA_FORMS.contains(&after);
+        // A voweled article Lam followed by a bare Alif is the transfer already
+        // spelled out; a Shadda would make it a sun letter, not a Naql.
+        let is_transferred = index.has_diacritic_after_mask(lam_idx, vowels)
+            && !index.has_shadda_after(lam_idx)
+            && after == 'ا'
+            && index.diacritic_mask_at(after_idx) & crate::utils::DIAC_ANY == 0;
+
+        if is_written_hamza || is_transferred {
+            matches.push(RuleMatch {
+                start_index: lam_idx,
+                end_index: after_idx + 1,
+                target_letter: verse_chars[lam_idx],
+                following_letter: Some(after),
+                rule: TajweedRule::from_type(TajweedRuleType::Naql, style),
+                context: get_context(verse_chars, lam_idx, 4),
+            });
+        }
     }
 }
 
@@ -452,7 +536,12 @@ pub(crate) fn detect_idgham_mutaqaribayn_indexed(
         if is_sakin {
             if let Some(next_idx) = index.next_letter_after(i) {
                 let next_ch = verse_chars[next_idx];
-                if MUTAQARIBAYN_PAIRS.contains(&(ch, next_ch)) {
+                // The Lam of the definite article before a Ra is Lam
+                // Shamsiyyah (ٱلرَّحْمَٰنِ), not Idgham Mutaqaribayn — the pair
+                // only counts where the Lam is a word of its own (قُل رَّبِّ).
+                let is_article_lam = ch == 'ل'
+                    && crate::rules::lam_al_tarif::article_start(verse_chars, index, i).is_some();
+                if !is_article_lam && MUTAQARIBAYN_PAIRS.contains(&(ch, next_ch)) {
                     matches.push(RuleMatch {
                         start_index: i,
                         end_index: next_idx + 1,
@@ -495,7 +584,26 @@ pub(crate) fn detect_hamzat_wasl_indexed(
     while i < verse_chars.len() {
         let ch = verse_chars[i];
 
-        // Only look at Alif (ا) — the visual form of Hamzat Wasl
+        // The Uthmani script spells the connecting Hamza out as Alif Wasla
+        // (ٱ, U+0671). Where it is written there is nothing left to infer —
+        // it is a Hamzat Wasl wherever it stands, including inside a word
+        // after a prefix (بِٱسْمِ, وَٱلضُّحَىٰ).
+        if ch == '\u{0671}' {
+            let following = index.next_letter_after(i).map(|n| verse_chars[n]);
+            matches.push(RuleMatch {
+                start_index: i,
+                end_index: i + 1,
+                target_letter: ch,
+                following_letter: following,
+                rule: TajweedRule::from_type(TajweedRuleType::HamzatWasl, style),
+                context: get_context(verse_chars, i, 3),
+            });
+            i += 1;
+            continue;
+        }
+
+        // Otherwise only a plain Alif (ا) can carry it, and then only at the
+        // start of a word, where it has to be told apart from Hamzat Qat'.
         if ch != 'ا' {
             i += 1;
             continue;

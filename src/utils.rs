@@ -136,6 +136,20 @@ impl<'a> VerseIndex<'a> {
         }
     }
 
+    /// Return the next Arabic letter index that is actually *pronounced*,
+    /// skipping a silent Alif — the Alif written after a plural Waw
+    /// (قَالُوٓا۟) or after a Madd, marked with U+06DF / U+06E0. It is a
+    /// spelling artefact and must not be taken for the letter that decides a
+    /// Madd's class.
+    pub fn next_pronounced_letter(&self, idx: usize) -> Option<usize> {
+        let next = self.next_letter_after(idx)?;
+        if is_silent_letter(self.chars, next) {
+            self.next_letter_after(next)
+        } else {
+            Some(next)
+        }
+    }
+
     /// Return the previous Arabic letter index before the given position.
     pub fn prev_letter_before(&self, idx: usize) -> Option<usize> {
         if idx == 0 {
@@ -173,7 +187,32 @@ impl<'a> VerseIndex<'a> {
         *self.diacritic_mask.get(idx).unwrap_or(&0)
     }
 
-    /// Return the effective vowel for a letter, searching current then previous letter in word.
+    /// The short vowel carried by the *previous* letter in the same word.
+    ///
+    /// This is the vowel a Madd letter needs: a Madd Alif/Waw/Ya carries no
+    /// vowel of its own and is lengthened by the vowel before it. Unlike
+    /// [`Self::preceding_vowel`] it never falls back to a vowel written on the
+    /// letter itself — a voweled Waw is a consonant (وُسْعَهَا), not a Madd.
+    pub fn vowel_on_previous_letter(&self, idx: usize) -> Option<char> {
+        let prev_idx = self.prev_letter_before(idx)?;
+        if self.has_boundary_between(prev_idx + 1, idx) {
+            return None;
+        }
+        let prev_mask = *self.diacritic_mask.get(prev_idx).unwrap_or(&0);
+        if prev_mask & DIAC_FATHA != 0 {
+            return Some('\u{064E}');
+        }
+        if prev_mask & DIAC_DAMMA != 0 {
+            return Some('\u{064F}');
+        }
+        if prev_mask & DIAC_KASRA != 0 {
+            return Some('\u{0650}');
+        }
+        None
+    }
+
+    /// Return the effective vowel for a letter, searching the letter itself
+    /// first and then the previous letter in the word.
     pub fn preceding_vowel(&self, idx: usize) -> Option<char> {
         let mask = *self.diacritic_mask.get(idx).unwrap_or(&0);
         if mask & DIAC_FATHA != 0 {
@@ -232,6 +271,24 @@ pub fn is_shadda(c: char) -> bool {
 /// Check if character is a short vowel (Fatha, Damma, Kasra)
 pub fn is_vowel(c: char) -> bool {
     matches!(c, '\u{064E}' | '\u{064F}' | '\u{0650}')
+}
+
+/// Marks that silence the letter they sit on: U+06DF (small high rounded
+/// zero) and U+06E0 (small high upright rectangular zero).
+pub fn is_silence_mark(c: char) -> bool {
+    matches!(c, '\u{06DF}' | '\u{06E0}')
+}
+
+/// True when the letter at `idx` carries a silence mark.
+pub fn is_silent_letter(chars: &[char], idx: usize) -> bool {
+    chars
+        .get(idx + 1..)
+        .map(|rest| {
+            rest.iter()
+                .take_while(|c| is_tajweed_ignorable(**c) && !c.is_whitespace())
+                .any(|c| is_silence_mark(*c))
+        })
+        .unwrap_or(false)
 }
 
 /// Check if character is a Hamza (همزة) in any form

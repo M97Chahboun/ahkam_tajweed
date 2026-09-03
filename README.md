@@ -141,7 +141,11 @@ for m in hafs.process_verse(verse) {
 - **Sakt** (س) — Short pause without breathing
 
 ### 9. Warsh-Specific Rules (أحكام ورش الخاصة)
-- **An-Naql** (النقل) — Transfer of Hamza vowel to the preceding Saakin consonant across word boundaries (e.g., `قَدْ أَفْلَحَ` → `قَدَفْلَحَ`, `الْأَرْضِ` → `الَارْضِ`)
+- **An-Naql** (النقل) — Transfer of the Hamzat Qat'a vowel onto the preceding Saakin, both across a word boundary
+  (`قَدْ أَفْلَحَ` → `قَدَ فْلَحَ`) and onto the Lam of the definite article (`الْإِيمَٰن` → `لِايمَٰن`, `الْأَرْضِ` → `لَارْضِ`).
+  Article Naql is recognised in ordinary orthography (sakin Lam + written Hamza) and in the Warsh mushaf spelling,
+  where the transfer is already written — the Lam carries the vowel and only the silent Alif of the Hamza remains
+  (`اُ۬لِايمَٰنَ`)
 - **Tasheel Al-Hamza** (تسهيل الهمزة) — Softening of consecutive Hamzas in the same word (e.g., `أَأَنذَرْتَهُمْ`)
 - **Madd Badal Extension** — 2, 4, or 6 harakaat options (Al-Qasr, At-Tawassut, At-Tool)
 - **Special Ra Tarqeeq & Idgham Naqis**
