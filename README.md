@@ -1,6 +1,16 @@
+
 # Ahkam Tajweed
 
 A comprehensive, high-performance Rust library for detecting and processing Islamic Quranic recitation rules (Tajweed) with full support for the Warsh ('an Nafi') and Hafs ('an 'Asim) narrations.
+
+## Demo
+
+[Flutter Package](https://github.com/M97Chahboun/flutter_ahkam_tajweed)
+
+[Live Demo](https://ahkam-tajweed.web.app)
+
+<img width="1511" height="858" alt="Screenshot 2026-09-16 at 13 24 21" src="https://github.com/user-attachments/assets/1323d4b7-ca63-409a-a8b3-ed6a3413c1ed" />
+
 
 ## Features
 
