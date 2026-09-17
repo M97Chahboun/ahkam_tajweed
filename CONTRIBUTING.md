@@ -1,121 +1,87 @@
-# Contributing to Tajweed Warsh Rules
+# Contributing to Ahkam Tajweed
 
-Thank you for your interest in contributing! This document provides guidelines and instructions for contributing to the project.
+Thank you for your interest in contributing to Ahkam Tajweed! Contributions are welcome, especially improvements to Tajweed accuracy, tests, documentation, performance, and the CLI.
 
 ## Code of Conduct
 
-Please be respectful and constructive in all interactions.
+Please be respectful, constructive, and patient in all interactions.
 
 ## Getting Started
 
-1. Fork the repository
-2. Clone your fork locally
-3. Create a feature branch: `git checkout -b feature/your-feature-name`
-4. Install Rust if you haven't already: https://rustup.rs/
+1. Fork the repository.
+2. Clone your fork:
 
-## Development Setup
+   ```bash
+   git clone https://github.com/M97Chahboun/ahkam_tajweed.git
+   cd ahkam_tajweed
+   ```
 
-```bash
-# Clone the repository
-git clone https://github.com/m97chahboun/tajweed_warsh_rules.git
-cd tajweed_warsh_rules
+3. Create a focused branch:
 
-# Build the project
-cargo build
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
 
-# Run tests
-cargo test
+4. Install Rust through [rustup](https://rustup.rs/).
 
-# Run the CLI
-cargo run
+## Development Checks
 
-# Build documentation
-cargo doc --open
-```
-
-## Making Changes
-
-### Code Style
-
-- Follow Rust conventions (rustfmt, clippy)
-- Use meaningful variable names
-- Add comments for complex logic
-- Update documentation comments as needed
-
-### Running Code Quality Checks
+Before opening a pull request, run:
 
 ```bash
-# Format code
-cargo fmt
-
-# Check for warnings
-cargo clippy
-
-# Run tests
-cargo test
-
-# Build documentation
+cargo fmt -- --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all-features
 cargo doc --no-deps
 ```
 
-## Testing
+If a check cannot be run locally, mention that clearly in the pull request.
 
-Please ensure:
+## Making Changes
 
-1. All existing tests pass: `cargo test`
-2. New code has appropriate tests
-3. Tests cover both success and edge cases
-4. Test names are descriptive
-
-## Commit Messages
-
-Use clear, descriptive commit messages:
-
-```
-Add support for X rule
-
-- Implement detection logic for X
-- Add unit tests
-- Update documentation
-```
+- Keep pull requests focused and reasonably small.
+- Follow standard Rust conventions and use meaningful names.
+- Add or update tests for changed behavior, including edge cases.
+- Preserve Unicode-aware indexing and narration-specific behavior.
+- For Tajweed rule changes, include authoritative references or explain the scholarly basis and whether the behavior applies to Hafs, Warsh, or both.
+- Update documentation and `CHANGELOG.md` when appropriate.
+- Do not include Quranic text or other copyrighted data without confirming that its source permits redistribution.
 
 ## Pull Request Process
 
-1. Ensure all tests pass: `cargo test`
-2. Run `cargo fmt` to format code
-3. Run `cargo clippy` to check for warnings
-4. Update README.md if adding new features
-5. Update CHANGELOG.md with your changes
-6. Submit PR with clear description of changes
+Please include:
 
-## Feature Ideas
+- A clear summary of the problem and solution.
+- The relevant issue number, when applicable.
+- Tests and checks that were run.
+- Any known limitations or follow-up work.
 
-Areas where contributions are welcome:
+Maintainers may request changes to improve correctness, clarity, portability, or compatibility with the project's API and license.
 
-- **New Tajweed Rules**: Implementing additional rules or variants
-- **Performance**: Optimizations for faster processing
-- **Documentation**: Improving guides and examples
-- **Testing**: Additional test cases and edge cases
-- **CLI Enhancements**: Better user interface for the CLI tool
-- **Output Formats**: JSON, XML, or other output formats
-- **Internationalization**: Support for multiple languages in descriptions
+## AI-Assisted Contributions
+
+AI tools, including coding assistants, are **allowed with conditions**:
+
+- Contributors remain fully responsible for the submitted code, documentation, tests, and claims.
+- Review and understand every generated change before submitting it; do not submit unverified output.
+- Run the relevant formatting, linting, tests, and documentation checks locally.
+- For Tajweed rules, verify generated content against reliable scholarly sources and identify the sources in the pull request when relevant. AI output is not an authority for Quranic recitation rules.
+- Do not submit private, personal, copyrighted, or otherwise sensitive material to an AI service.
+- Do not use AI to fabricate test results, references, attribution, or contributor experience.
+- Disclose substantial AI assistance in the pull request description, especially when it generated implementation, tests, or scholarly explanations.
+- Maintainers may ask for a manual explanation or revision of AI-assisted code and may reject changes that cannot be responsibly verified.
+
+AI assistance is not a substitute for human review, domain expertise, or compliance with this project's license and third-party licenses.
 
 ## Reporting Issues
 
-When reporting bugs, please include:
+When reporting a bug, include:
 
-- Clear description of the issue
-- Steps to reproduce
-- Expected vs actual behavior
-- Rust version: `rustc --version`
-- OS and version
+- A clear description and minimal reproduction.
+- Expected and actual behavior.
+- The narration and input text involved, where relevant.
+- Rust version (`rustc --version`) and operating system.
 
-## Questions?
+## License
 
-Feel free to open an issue or discussion for questions about contributing.
-
-## Recognition
-
-Contributors will be credited in the project documentation.
-
-Thank you for making this project better!
+By contributing, you agree that your contributions will be licensed under the same dual-license terms as the project: [MIT](LICENSE-MIT) or [Apache License 2.0](LICENSE-APACHE), at your option. See [LICENSE](LICENSE) for details.
