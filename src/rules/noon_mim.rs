@@ -25,7 +25,10 @@ pub(crate) fn detect_noon_mim_rules_indexed(
     while i < verse_chars.len() {
         let current_char = verse_chars[i];
         if i + 1 < verse_chars.len()
-            && index.has_shadda_after(i) && (current_char == 'ن' || current_char == 'م') {
+            && index.has_shadda_after(i)
+            && (current_char == 'ن' || current_char == 'م')
+            && !is_idgham_product(verse_chars, index, i)
+        {
                 let mut end_idx = i + 1;
                 while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
                     end_idx += 1;
@@ -38,8 +41,8 @@ pub(crate) fn detect_noon_mim_rules_indexed(
                     rule: TajweedRule::from_type(TajweedRuleType::GhunnahMushadda, style),
                     context: get_context(verse_chars, i, 3),
                 });
-                i = end_idx;
-                continue;
+                // Fall through: a Noon/Mim can carry a Shadda *and* a Tanwin
+                // (صُمٌّ وَ، مُّسَمًّى، بِغَمٍّ), and the Tanwin has rules of its own.
             }
 
         // Noon or Mim with Sukun/Tanwin
@@ -146,6 +149,45 @@ fn determine_rule_for_mim(
     TajweedRuleType::NoRule
 }
 
+/// True when the Shadda on the Noon/Mim at `idx` is the *product* of an
+/// assimilation rather than part of the word.
+///
+/// `مِن مَّاءٍ` and `لَهُم مَّشَوْا۟` double their Mim only because the Noon/Mim
+/// Sakinah before them merged into it, and `يَوْمَئِذٍ نَّاعِمَةٌ` doubles its Noon
+/// only because of the Tanwin. The Ghunnah is real but it belongs to the Idgham
+/// that produced it, which is reported in its own right — reporting a separate
+/// Ghunnah Mushaddadah on top would count the same sound twice.
+fn is_idgham_product(verse_chars: &[char], index: &VerseIndex, idx: usize) -> bool {
+    let Some(mut prev) = index.prev_letter_before(idx) else {
+        return false;
+    };
+    // Tanwin Fath is written on the letter *before* a bare seat Alif
+    // (مَثَلًا, رِجْزًا), so step over that Alif to reach the letter that
+    // carries the Tanwin.
+    if matches!(verse_chars[prev], 'ا' | 'ى')
+        && index.diacritic_mask_at(prev) & crate::utils::DIAC_ANY == 0
+    {
+        match index.prev_letter_before(prev) {
+            Some(p) if !index.has_boundary_between(p + 1, prev) => prev = p,
+            _ => {}
+        }
+    }
+    // Tanwin on the previous letter always assimilates into a following ن or م.
+    if index.has_tanwin_after(prev) {
+        return true;
+    }
+    // A Noon Sakinah merges into ن and م; a Mim Sakinah merges into م only.
+    let prev_char = verse_chars[prev];
+    let prev_is_sakin = index.has_sukun_after(prev) || index.diacritic_mask_at(prev) == 0;
+    if !prev_is_sakin {
+        return false;
+    }
+    match (prev_char, verse_chars[idx]) {
+        ('ن', 'ن') | ('ن', 'م') | ('م', 'م') => true,
+        _ => false,
+    }
+}
+
 fn check_noon_mim(
     verse_chars: &[char],
     index: &VerseIndex,
@@ -161,7 +203,11 @@ fn check_noon_mim(
     current_char: char,
     style: RecitationStyle,
 ) {
-    let has_sukun_or_tanwin = index.has_sukun_after(i) || index.has_tanwin_after(i);
+    // Only a Sukun makes the letter itself sakinah. A Noon or Mim *carrying*
+    // a Tanwin is the seat of the Tanwin, and the Tanwin's own rules apply:
+    // قَوْمٌ مُّسْرِفُونَ is إدغام بغنة (Tanwin into Mim), not إدغام شفوي, and
+    // عَلِيمٌۢ بِ is إقلاب, not إخفاء شفوي.
+    let has_sukun_or_tanwin = index.has_sukun_after(i);
     // A Noon or Mim carrying no mark at all is Sakinah. The Uthmani script
     // relies on this: it leaves the Sukun off a Mim Sakinah standing before
     // م or ب (قُلُوبِهِم مَّرَضٌ, هُم بِمُؤْمِنِينَ), because the following
@@ -583,6 +629,14 @@ pub(crate) fn detect_hamzat_wasl_indexed(
     let mut i = 0;
     while i < verse_chars.len() {
         let ch = verse_chars[i];
+
+        // A connecting Hamza that opens the recitation is *pronounced*: there
+        // is nothing before it to connect to. The rule is about the Hamza
+        // being dropped, so the first letter of the verse is not reported.
+        if index.prev_letter_before(i).is_none() {
+            i += 1;
+            continue;
+        }
 
         // The Uthmani script spells the connecting Hamza out as Alif Wasla
         // (ٱ, U+0671). Where it is written there is nothing left to infer —

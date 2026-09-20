@@ -139,6 +139,10 @@ pub enum TajweedRuleType {
     /// الإشمام - Al-Ishmam (lip rounding for elided Dammah in تأمنا/تامنّا)
     Ishmam,
 
+    // الحروف غير المنطوقة
+    /// الحرف غير المنطوق - a letter written but not read (قَالُوا۟، ٱلصَّلَوٰة)
+    Silent,
+
     /// No applicable rule
     NoRule,
 }
@@ -546,6 +550,14 @@ static RULE_TABLE: &[(TajweedRuleType, RuleMeta)] = &[
         madd_length_warsh: None,
     }),
     // ── Fallback ──────────────────────────────────────────────────────────────
+    (TajweedRuleType::Silent, RuleMeta {
+        arabic_name: "الحرف غير المنطوق",
+        english_name: "Silent Letter",
+        desc_hafs: "حرف مرسوم في الخط لا يُنطق في التلاوة، كالألف بعد واو الجماعة (قَالُوا۟) والواو في (الصَّلَوٰة).",
+        desc_warsh: "حرف مرسوم في الخط لا يُنطق في التلاوة، كالألف بعد واو الجماعة (قَالُوا۟) والواو في (الصَّلَوٰة).",
+        warsh_specific: false,
+        madd_length_warsh: None,
+    }),
     (TajweedRuleType::NoRule, RuleMeta {
         arabic_name: "لا يوجد حكم",
         english_name: "No Rule",

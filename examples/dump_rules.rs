@@ -2,7 +2,7 @@
 //! external tajweed corpus.
 //!
 //! Reads Tanzil-style `surah|ayah|text` lines on stdin and writes one
-//! `surah<TAB>ayah<TAB>rule<TAB>start<TAB>end` line per match.
+//! `surah<TAB>ayah<TAB>rule<TAB>start<TAB>end<TAB>target` line per match.
 //!
 //! ```sh
 //! cargo run --example dump_rules -- hafs < quran-uthmani.txt > ours.tsv
@@ -37,8 +37,8 @@ fn main() {
         for m in processor.process_verse(text) {
             writeln!(
                 out,
-                "{}\t{}\t{:?}\t{}\t{}",
-                surah, ayah, m.rule.rule_type, m.start_index, m.end_index
+                "{}\t{}\t{:?}\t{}\t{}\t{}",
+                surah, ayah, m.rule.rule_type, m.start_index, m.end_index, m.target_letter
             )
             .unwrap();
         }

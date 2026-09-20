@@ -46,8 +46,19 @@ mod corpus_diff_tests {
         let m = analyze("ٱقْرَأْ بِٱسْمِ رَبِّكَ ٱلَّذِى خَلَقَ");
         assert_eq!(
             count(&m, TajweedRuleType::HamzatWasl),
-            3,
-            "ٱقْرَأْ, بِٱسْمِ and ٱلَّذِى each carry a Hamzat Wasl"
+            2,
+            "بِٱسْمِ and ٱلَّذِى each carry a Hamzat Wasl; the one opening ٱقْرَأْ \
+             begins the recitation and is pronounced, not dropped"
+        );
+    }
+
+    #[test]
+    fn a_hamzat_wasl_opening_the_verse_is_pronounced() {
+        let m = analyze("ٱقْرَأْ بِٱسْمِ");
+        assert!(
+            m.iter().all(|r| r.start_index != 0
+                || r.rule.rule_type != TajweedRuleType::HamzatWasl),
+            "nothing precedes the first letter, so nothing connects to it"
         );
     }
 
