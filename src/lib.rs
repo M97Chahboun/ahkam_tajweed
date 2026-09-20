@@ -58,7 +58,7 @@
 //! - Madd Arid (المد العارض للسكون)
 //! - Madd Lin (المد اللين)
 //! - Madd Badal (مد البدل) - Warsh variants: 2-6 harakaat
-//! - Madd Silah (صلة الهاء) - Warsh specific
+//! - Madd Silah (صلة الهاء) - read by all qurra'; Haa of the pronoun between two voweled letters
 //!
 //! ### Qalqalah (القلقلة)
 //! - Qalqalah Akbar (القلقلة الأكبر) - Shaddah at Waqf
@@ -100,6 +100,9 @@ pub mod zwj_handler;
 
 #[cfg(test)]
 mod tajweed_alignment_tests;
+
+#[cfg(test)]
+mod reported_issues_tests;
 
 // Re-export main types and processor for convenient access
 pub use processor::TajweedProcessor;

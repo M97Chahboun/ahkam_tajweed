@@ -2,11 +2,26 @@
 //!
 //! This module handles detection of rules related to:
 //! - Tafkhim Ra (تفخيم الراء) - Emphasis/heaviness of Ra
-//! - Tarqeeq Ra (ترقيق الراء) - Thinning/lightness of Ra (Warsh specific)
+//! - Tarqeeq Ra (ترقيق الراء) - Thinning/lightness of Ra (agreed positions + Warsh's own)
 //! - Tafkhim Lafz Al-Jalalah (تفخيم لفظ الجلالة) - Emphasis of Allah's name
 
 use crate::types::{RecitationStyle, RuleMatch, TajweedRule, TajweedRuleType};
 use crate::utils::*;
+
+/// Which readers thin a given Ra.
+///
+/// Ra Tarqeeq is not one rule but two overlapping sets of positions: the ones
+/// every reader agrees on, and the extra ones Warsh reads with tarqeeq. Reports
+/// from testers (issue #6) showed that labelling the agreed positions — e.g. the
+/// kasra-bearing Ra of `لِنُرِيَهُۥ` — as "Warsh-specific" is wrong, so detection
+/// carries the distinction per occurrence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TarqeeqScope {
+    /// متفق عليه: راء مكسورة، أو ساكنة بعد كسر أصلي أو بعد ياء ساكنة.
+    Agreed,
+    /// خاص بورش: راء مفتوحة أو مضمومة بعد كسر أو ياء ساكنة.
+    WarshSpecific,
+}
 
 /// Detect Tafkhim Ra (تفخيم الراء)
 /// Ra is emphasized (heavy) when:
@@ -49,15 +64,15 @@ fn detect_tafkhim_ra_indexed(
 
 /// Detect Tarqeeq Ra (ترقيق الراء)
 /// Ra is thinned (light) when:
-/// 1. It has a kasra
-/// 2. It has a sukoon and the letter before has kasra
-/// 3. In Warsh: when it has fatha/damma and preceded by Kasra / Saakin Ya, unless an exception applies.
+/// 1. It has a kasra — agreed upon by all readers
+/// 2. It has a sukoon and the letter before has kasra / is a Saakin Ya — agreed upon
+/// 3. In Warsh only: when it has fatha/damma and preceded by Kasra / Saakin Ya, unless an exception applies.
 pub fn detect_tarqeeq_ra(
     verse_chars: &[char],
     current_index: usize,
 ) -> Option<TajweedRuleType> {
     let index = VerseIndex::new(verse_chars);
-    detect_tarqeeq_ra_styled(verse_chars, &index, current_index, RecitationStyle::Hafs)
+    detect_tarqeeq_ra_indexed(verse_chars, &index, current_index)
 }
 
 fn detect_tarqeeq_ra_indexed(
@@ -66,21 +81,24 @@ fn detect_tarqeeq_ra_indexed(
     current_index: usize,
 ) -> Option<TajweedRuleType> {
     detect_tarqeeq_ra_styled(verse_chars, index, current_index, RecitationStyle::Hafs)
+        .map(|(rule_type, _)| rule_type)
 }
 
+/// Same as [`detect_tarqeeq_ra`], but also reports whether the occurrence is one
+/// of Warsh's own positions or one the qurra' agree on.
 fn detect_tarqeeq_ra_styled(
     verse_chars: &[char],
     index: &VerseIndex,
     current_index: usize,
     style: RecitationStyle,
-) -> Option<TajweedRuleType> {
+) -> Option<(TajweedRuleType, TarqeeqScope)> {
     if current_index >= verse_chars.len() {
         return None;
     }
 
     // 1. Ra with Kasra (رِ / رٍ) is always Tarqeeq in both Hafs and Warsh
     if index.has_diacritic_after_mask(current_index, DIAC_KASRA) {
-        return Some(TajweedRuleType::TarqeeqRa);
+        return Some((TajweedRuleType::TarqeeqRa, TarqeeqScope::Agreed));
     }
 
     // 2. Ra with Sukun (رْ)
@@ -100,13 +118,13 @@ fn detect_tarqeeq_ra_styled(
                         return None; // Must be Tafkhim
                     }
                 }
-                return Some(TajweedRuleType::TarqeeqRa);
+                return Some((TajweedRuleType::TarqeeqRa, TarqeeqScope::Agreed));
             }
             // Preceded by Saakin Ya (e.g. خَيْرْ, قَدِيرْ at stop)
             if (verse_chars[prev_idx] == 'ي' || verse_chars[prev_idx] == '\u{06CC}')
                 && (index.has_sukun_after(prev_idx) || index.diacritic_mask_at(prev_idx) == 0)
             {
-                return Some(TajweedRuleType::TarqeeqRa);
+                return Some((TajweedRuleType::TarqeeqRa, TarqeeqScope::Agreed));
             }
         }
     }
@@ -124,12 +142,12 @@ fn detect_tarqeeq_ra_styled(
                     // Case A: Preceded by Saakin Ya (e.g. خَيْرًا, طَيْرًا, نَذِيرٌ, خَبِيرًا, بَصِيرٌ, غَيْرَ)
                     if (verse_chars[prev_idx] == 'ي' || verse_chars[prev_idx] == '\u{06CC}')
                         && (index.has_sukun_after(prev_idx) || index.diacritic_mask_at(prev_idx) == 0) {
-                            return Some(TajweedRuleType::TarqeeqRa);
+                            return Some((TajweedRuleType::TarqeeqRa, TarqeeqScope::WarshSpecific));
                         }
 
                     // Case B: Preceded by direct original Kasra (e.g. نَاصِرًا, قَادِرُونَ, سِرَاجًا)
                     if index.has_diacritic_after_mask(prev_idx, DIAC_KASRA) {
-                        return Some(TajweedRuleType::TarqeeqRa);
+                        return Some((TajweedRuleType::TarqeeqRa, TarqeeqScope::WarshSpecific));
                     }
 
                     // Case C: Preceded by Kasra separated by a single non-Isti'la Saakin letter (e.g. عِبْرَةً, سِحْرٌ, مِحْرَاب, ذِكْرَا, إِكْرَاه)
@@ -139,7 +157,7 @@ fn detect_tarqeeq_ra_styled(
                         if let Some(prev_prev_idx) = index.prev_letter_before(prev_idx) {
                             if !index.has_boundary_between(prev_prev_idx + 1, current_index)
                                 && index.has_diacritic_after_mask(prev_prev_idx, DIAC_KASRA) {
-                                    return Some(TajweedRuleType::TarqeeqRa);
+                                    return Some((TajweedRuleType::TarqeeqRa, TarqeeqScope::WarshSpecific));
                                 }
                         }
                     }
@@ -380,7 +398,7 @@ pub(crate) fn detect_ra_rules_indexed(
             let mut found_rule = false;
 
             // Check for Tarqeeq Ra (applicable in both styles, with full Warsh rules and exceptions)
-            if let Some(tarqeeq_type) = detect_tarqeeq_ra_styled(verse_chars, index, i, style) {
+            if let Some((tarqeeq_type, scope)) = detect_tarqeeq_ra_styled(verse_chars, index, i, style) {
                 // Calculate end index including diacritics
                 let mut end_idx = i + 1;
                 while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
@@ -392,7 +410,8 @@ pub(crate) fn detect_ra_rules_indexed(
                     end_index: end_idx,
                     target_letter: verse_chars[i],
                     following_letter: None,
-                    rule: TajweedRule::from_type(tarqeeq_type, style),
+                    rule: TajweedRule::from_type(tarqeeq_type, style)
+                        .with_warsh_specific(scope == TarqeeqScope::WarshSpecific),
                     context: get_context(verse_chars, i, 3),
                 });
                 found_rule = true;

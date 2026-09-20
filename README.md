@@ -121,13 +121,13 @@ for m in hafs.process_verse(verse) {
 
 ### 4. Madd Rules (أحكام المدود)
 - **Madd Tabeei** (المد الطبيعي) — Natural prolongation (2 counts)
-- **Madd Muttasil** (المد المتصل) — Connected prolongation before Hamza in the same word (4-5 counts, Warsh: 4-6)
-- **Madd Munfasil** (المد المنفصل) — Separated prolongation before Hamza across word boundary (2-4-5 counts, Warsh: 4-6)
+- **Madd Muttasil** (المد المتصل) — Connected prolongation before Hamza in the same word (Hafs: 4-5 counts, Warsh via Al-Azraq: 6 counts only — no Ishbaa' via Al-Asbahani)
+- **Madd Munfasil** (المد المنفصل) — Separated prolongation before Hamza across word boundary (Hafs: 2-4-5 counts, Warsh via Al-Azraq: 6 counts only — via Al-Asbahani 2-4 with no Ishbaa')
 - **Madd Lazim** (المد اللازم) — Compulsory prolongation before permanent Sukun/Shaddah (6 counts)
 - **Madd Arid** (المد العارض للسكون) — Incidental prolongation at Waqf/pause (2-4-6 counts)
 - **Madd Lin** (المد اللين) — Soft prolongation on Waw/Ya Saakin preceded by Fatha (2-4-6 counts)
 - **Madd Badal** (مد البدل) — Hamza preceding Madd letter (2 counts, Warsh: 2/4/6 counts)
-- **Madd Silah** (صلة الهاء) — Extension of Ha Kinayah (Warsh: includes Silah Kubra)
+- **Madd Silah** (صلة الهاء) — Joining the Ha of the pronoun when it is **voweled between two voweled letters**; read by all qurra' with differences in detail (Silah Kubra before a Hamza is read as a Munfasil)
 
 ### 5. Qalqalah (القلقلة)
 - **Qalqalah Akbar** (القلقلة الأكبر) — Strongest echo on Qalqalah letter with Shaddah at Waqf (e.g., الْحَجِّ)
@@ -136,7 +136,7 @@ for m in hafs.process_verse(verse) {
 
 ### 6. Ra & Lafz Al-Jalalah (أحكام الراء ولفظ الجلالة)
 - **Tafkhim Ra** (تفخيم الراء) — Emphasized heavy Ra (with Fatha/Damma, or Sukun after Fatha/Damma)
-- **Tarqeeq Ra** (ترقيق الراء) — Light Ra (with Kasra, Sukun after Kasra, or after Saakin Ya e.g., خَيْرْ, قَدِيرْ)
+- **Tarqeeq Ra** (ترقيق الراء) — Light Ra. Agreed upon by all readers when the Ra carries a Kasra, or is Saakin after a Kasra or a Saakin Ya (e.g., خَيْرْ, قَدِيرْ); Warsh adds a Ra with Fatha/Damma after a Kasra or Saakin Ya. Each match reports which case it is via `rule.warsh_specific`
 - **Tafkhim Lafz Al-Jalalah** (تفخيم لفظ الجلالة) — Heavy "Allah" when preceded by Fatha/Damma (e.g., قَالَ اللَّهُ)
 - **Tarqeeq Lafz Al-Jalalah** (ترقيق لفظ الجلالة) — Light "Allah" when preceded by Kasra (e.g., بِاللَّهِ, بِسْمِ اللَّهِ)
 
@@ -163,11 +163,12 @@ for m in hafs.process_verse(verse) {
 
 | Feature | Hafs ('an 'Asim) | Warsh ('an Nafi' via Al-Azraq) |
 |---|---|---|
-| **Madd Muttasil / Munfasil** | 4-5 harakaat | 4-6 harakaat |
+| **Madd Muttasil** | 4-5 harakaat | 6 harakaat (Ishbaa', Al-Azraq only) |
+| **Madd Munfasil** | 2-4-5 harakaat | 6 harakaat (Ishbaa', Al-Azraq only) |
 | **Madd Badal** | 2 harakaat | 2, 4, or 6 harakaat |
 | **An-Naql (النقل)** | No | ✅ Yes (vowel transfer to Saakin) |
 | **Tasheel Al-Hamza (تسهيل الهمزة)** | Limited | ✅ Yes (two Hamzas in word) |
-| **Tarqeeq Ra (ترقيق الراء)** | Standard conditions | Extended (after Kasra, Saakin Ya) |
+| **Tarqeeq Ra (ترقيق الراء)** | Agreed positions only | Agreed positions + Fatha/Damma Ra after Kasra or Saakin Ya |
 | **Idgham Naqis (الإدغام الناقص)** | Standard | ✅ Narration-specific variants |
 
 ## API Reference
