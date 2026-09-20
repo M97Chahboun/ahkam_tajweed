@@ -58,11 +58,9 @@ struct SymbolRule {
 const SYMBOL_RULES: &[SymbolRule] = &[
     // Small High Meem U+06E2 — marks an Iqlab; target is the Noon before it.
     SymbolRule { char: '\u{06E2}', rule: TajweedRuleType::Iqlab,         offset: -1 },
-    // Dagger Alif U+0670 — natural Madd.
-    SymbolRule { char: '\u{0670}', rule: TajweedRuleType::MaddTabeei,    offset:  0 },
-    // Small Waw U+06E5 / Small Ya U+06E6 — Silah.
-    SymbolRule { char: '\u{06E5}', rule: TajweedRuleType::MaddSilah,     offset:  0 },
-    SymbolRule { char: '\u{06E6}', rule: TajweedRuleType::MaddSilah,     offset:  0 },
+    // The dagger Alif (U+0670) and the Silah marks (U+06E5 / U+06E6) are Madd
+    // letters, not bare symbols: the madd module classifies them by context
+    // (Tabee'i, 'Arid li-Sukun, Munfasil), so they are not listed here.
     // Waqf / Wasl marks.
     SymbolRule { char: '\u{06D6}', rule: TajweedRuleType::WaslAwla,      offset:  0 },  // صلى
     SymbolRule { char: '\u{06D7}', rule: TajweedRuleType::WaqfAwla,      offset:  0 },  // قلى
@@ -78,15 +76,28 @@ const SYMBOL_RULES: &[SymbolRule] = &[
 // ---------------------------------------------------------------
 
 
-/// Remove duplicate [`RuleMatch`] entries that share the same
-/// `(start_index, end_index, rule_type)`.  The *first* occurrence is
-/// kept, which is the one produced by the explicit-symbol scan (Stage 1)
-/// because it runs before the rule modules.
+/// Collapse [`RuleMatch`] entries that report the *same* rule over the same
+/// stretch of text.
+///
+/// Two stages can see one occurrence: the explicit-symbol scan reads the mark
+/// the mushaf writes (the small high Meem of an Iqlab, the Maddah of a
+/// Munfasil) while the rule modules derive the same rule from the letters. The
+/// two spans rarely coincide exactly — they start on different characters or
+/// swallow a different run of diacritics — so an exact-key comparison lets the
+/// duplicate through. Overlap of the spans is the reliable test.
+///
+/// The *first* occurrence is kept, which is the one produced by the
+/// explicit-symbol scan (Stage 1) because it runs before the rule modules.
 fn dedup_matches(matches: &mut Vec<RuleMatch>) {
-    let mut seen = std::collections::HashSet::new();
+    let mut kept: Vec<(usize, usize, TajweedRuleType)> = Vec::new();
     matches.retain(|m| {
-        let key = (m.start_index, m.end_index, m.rule.rule_type);
-        seen.insert(key) // returns false if already present
+        let overlaps = kept.iter().any(|(start, end, rule)| {
+            *rule == m.rule.rule_type && m.start_index < *end && *start < m.end_index
+        });
+        if !overlaps {
+            kept.push((m.start_index, m.end_index, m.rule.rule_type));
+        }
+        !overlaps
     });
 }
 
@@ -152,6 +163,7 @@ impl TajweedProcessor {
         let mut has_qalqalah = false;
         let mut has_ra = false;
         let mut has_hamza = false;       // Naql + Tasheel triggers
+        let mut has_silent = false;      // letters written but not pronounced
 
         for (i, &c) in chars.iter().enumerate() {
             // ── Check the explicit-symbol table first ──────────────────────
@@ -196,20 +208,40 @@ impl TajweedProcessor {
                 // ── U+0653 / U+06E4 Maddah sign — long Madd over a carrier ──
                 '\u{0653}' | '\u{06E4}' => {
                     has_madd_chars = true;
-                    let rule = if let Some(next_idx) = index.next_letter_after(i) {
+                    // The carrier is the character the Maddah sits on. A
+                    // Maddah over anything but a Madd letter can only be a
+                    // disjoined letter (الٓمٓ, صٓ, نٓ), whose spelled-out name
+                    // holds a six-count Madd — Madd Lazim Harfi.
+                    let carrier = if i > 0 { chars[i - 1] } else { c };
+                    let rule = if !letters::MADD_CARRIERS_ALL.contains(&carrier) {
+                        TajweedRuleType::MaddLazim
+                    } else if let Some(next_idx) = index.next_pronounced_letter(i) {
                         if crate::utils::is_hamza(chars[next_idx]) {
-                            if index.has_boundary_between(i + 1, next_idx) {
+                            let separated = index.has_boundary_between(i + 1, next_idx)
+                                || rules::madd::is_detached_particle(
+                                    &chars,
+                                    &index,
+                                    i.saturating_sub(1),
+                                );
+                            if separated {
                                 TajweedRuleType::MaddMunfasil
                             } else {
                                 TajweedRuleType::MaddMuttasil
                             }
-                        } else if index.has_shadda_after(next_idx) {
+                        } else if !index.has_boundary_between(i + 1, next_idx)
+                            && (index.has_shadda_after(next_idx)
+                                || index.has_sukun_after(next_idx))
+                        {
+                            // Permanent Sukun in the same word — Madd Lazim
+                            // Kalimi (ٱلضَّآلِّينَ, ءَآلْـَٰٔنَ).
                             TajweedRuleType::MaddLazim
                         } else {
                             TajweedRuleType::MaddMuttasil
                         }
                     } else {
-                        TajweedRuleType::MaddMuttasil
+                        // Nothing follows in this verse: the Madd is simply
+                        // held at the stop.
+                        TajweedRuleType::MaddTabeei
                     };
                     matches.push(RuleMatch {
                         start_index: i.saturating_sub(1),
@@ -219,6 +251,23 @@ impl TajweedProcessor {
                         rule: TajweedRule::from_type(rule, self.style),
                         context: crate::utils::get_context(&chars, i, 3),
                     });
+                }
+
+                // ── Silence marks and the superscript Alef ──────────────────
+                '\u{06DF}' | '\u{06E0}' => {
+                    has_silent = true;
+                }
+
+                // The superscript Alef is a Madd letter, and the Waw or Alif it
+                // sits on is a silent seat.
+                '\u{0670}' => {
+                    has_madd_chars = true;
+                    has_silent = true;
+                }
+
+                // ── Silah marks — a Madd on the pronoun's Haa ────────────────
+                '\u{06E5}' | '\u{06E6}' => {
+                    has_madd_chars = true;
                 }
 
                 // ── Qalqalah letters ─────────────────────────────────────────
@@ -279,6 +328,15 @@ impl TajweedProcessor {
             rules::ra::detect_ra_rules_indexed(&chars, &index, &mut matches, self.style);
         }
 
+        if has_silent {
+            rules::silent::detect_silent_letters_indexed(
+                &chars,
+                &index,
+                &mut matches,
+                self.style,
+            );
+        }
+
         // Tafkhim Lafz Al-Jalalah also requires Lam as a trigger.
         if has_lam {
             rules::ra::detect_allah_name_rules_indexed(&chars, &index, &mut matches, self.style);
@@ -287,14 +345,20 @@ impl TajweedProcessor {
         // New rules: Ghunnah, Naql, Tasheel, Mutajanisayn, Mutaqaribayn, HamzatWasl
         // (GhunnahMushadda is already emitted inside detect_noon_mim_rules_indexed above)
 
-        if has_hamza {
-            // Naql: Warsh — transfer Hamza vowel to preceding Sakin across word boundary
+        // Naql: Warsh — transfer of the Hamza vowel onto the preceding Sakin,
+        // across a word boundary or onto the Lam of the definite article. In the
+        // Warsh mushaf the transfer is already spelled out and no Hamza character
+        // survives, so a Lam alone is enough to make the pass worth running.
+        if has_hamza || has_lam {
             rules::noon_mim::detect_naql_rules_indexed(
                 &chars,
                 &index,
                 &mut matches,
                 self.style,
             );
+        }
+
+        if has_hamza {
             // Tasheel: Warsh — soften second Hamza when two consecutive Hamzas in same word
             rules::noon_mim::detect_tasheel_rules_indexed(
                 &chars,
@@ -494,7 +558,7 @@ mod tests {
     #[test]
     fn test_explicit_dagger_alif() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
-        let verse = "كٰن"; // Kaf + Dagger Alif + Noon
+        let verse = "كٰنَ ٱلنَّاسُ"; // Kaf + Dagger Alif + Noon
         assert!(has_rule(
             &p.process_verse(verse),
             TajweedRuleType::MaddTabeei
@@ -933,7 +997,7 @@ mod tests {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
         // كَانَ – Alif between two regular consonants
         assert!(has_rule(
-            &p.process_verse("كَانَ"),
+            &p.process_verse("كَانَ ٱلنَّاسُ"),
             TajweedRuleType::MaddTabeei
         ));
     }
@@ -959,7 +1023,7 @@ mod tests {
     fn test_waw_madd_with_damma() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
         // نُوحٌ (Nūḥun) - classic و madd example
-        let m = p.process_verse("نُوحٌ");
+        let m = p.process_verse("أَرْسَلْنَا نُوحًا إِلَىٰ قَوْمِهِۦ");
         assert!(has_rule(&m, TajweedRuleType::MaddTabeei)); // Natural madd on و
     }
 
@@ -984,12 +1048,17 @@ mod tests {
         ));
     }
 
-    /// MaddLazim – carrier followed by a Shaddah
+    /// MaddLazim – the Madd letter is *followed* by a Shaddah
     #[test]
     fn test_madd_lazim() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
-        // أَمَّا – Alif then Mim+Shadda
+        // ٱلضَّآلِّينَ – Alif then Lam+Shadda, same word
         assert!(has_rule(
+            &p.process_verse("وَلَا ٱلضَّآلِّينَ"),
+            TajweedRuleType::MaddLazim
+        ));
+        // أَمَّا – the Shadda sits *before* the Alif, so the Madd stays natural
+        assert!(!has_rule(
             &p.process_verse("أَمَّا"),
             TajweedRuleType::MaddLazim
         ));
@@ -1029,15 +1098,20 @@ mod tests {
         );
     }
 
-    /// MaddLin with Waw – وَقْفٌ has Waw(Fatha)+Qaf(Sukun)
+    /// MaddLin with Waw – the Waw carries the Sukun and a Fatha precedes it
     #[test]
     fn test_madd_lin_waw() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
-        let m = p.process_verse("وَقْفٌ");
+        let m = p.process_verse("خَوْفٍ");
         assert!(
             has_rule(&m, TajweedRuleType::MaddLin) || has_rule(&m, TajweedRuleType::MaddTabeei),
-            "وَقْفٌ (Waw+Fatha before Sukun) should yield MaddLin or MaddTabeei"
+            "خَوْفٍ (Fatha then a Sakin Waw) should yield MaddLin or MaddTabeei"
         );
+        // وَقْفٌ opens with a *voweled* Waw — a consonant, not a Lin letter.
+        assert!(!has_rule(
+            &p.process_verse("وَقْفٌ"),
+            TajweedRuleType::MaddLin
+        ));
     }
 
     /// MaddSilah – integration with two Small-Waw instances
@@ -1351,8 +1425,8 @@ mod tests {
     #[test]
     fn test_dagger_alif_index() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
-        // "كٰن" – Dagger Alif at index 1
-        let m = p.process_verse("كٰن");
+        // "كٰنَ" – Dagger Alif at index 1
+        let m = p.process_verse("كٰنَ ٱلنَّاسُ");
         let da = m
             .iter()
             .find(|r| r.rule.rule_type == TajweedRuleType::MaddTabeei)

@@ -19,28 +19,59 @@ pub(crate) fn detect_madd_rules_indexed(
     matches: &mut Vec<RuleMatch>,
     style: RecitationStyle,
 ) {
-    const MADD_LETTERS: [char; 4] = ['ا', 'و', 'ي', '\u{06CC}'];
+    // The superscript Alef (ٰ) is a Madd Alif in its own right: it is what is
+    // actually read in رَحْمَٰن، ٱلصَّلَوٰة، عَلَىٰ, where the letter it sits on is
+    // either a plain consonant or a silent seat.
+    const MADD_LETTERS: [char; 5] = ['ا', 'و', 'ي', '\u{06CC}', '\u{0670}'];
 
     let mut i = 0;
     while i < verse_chars.len() {
         let current_char = verse_chars[i];
 
-        // An Alif followed immediately by Lam in the same token (definite article "الـ") is not Madd
+        // The Alif of the definite article carries no Madd. Only a *genuine*
+        // article counts: the Alif of ٱلْأَمْثَالَ or قَالَ لَهُ is an ordinary Madd
+        // Alif that happens to sit before a Lam.
         if current_char == 'ا' || current_char == '\u{0671}' {
             if let Some(next_idx) = index.next_letter_after(i) {
-                if verse_chars[next_idx] == 'ل' && !index.has_boundary_between(i + 1, next_idx) {
+                if verse_chars[next_idx] == 'ل'
+                    && crate::rules::lam_al_tarif::article_start(verse_chars, index, next_idx)
+                        == Some(i)
+                {
                     i += 1;
                     continue;
                 }
             }
         }
 
+        // A letter carrying a silence mark is a spelling artefact — the Alif
+        // of أَنَا۠ or of قَالُوا۟ is written but not read, so it can neither be
+        // lengthened nor separate a Madd from a following Hamza.
+        if is_silent_letter(verse_chars, i) {
+            i += 1;
+            continue;
+        }
+
         if MADD_LETTERS.contains(&current_char) || current_char == 'آ' {
-            let vowel = index.preceding_vowel(i);
+            // A Madd letter carries no vowel of its own — it is lengthened by
+            // the vowel on the letter before it. A Waw or Ya that carries a
+            // Fatha/Damma/Kasra/Tanwin or a Shadda is a consonant
+            // (وُسْعَهَا، إِيَّاكَ), never a Madd letter.
+            const OWN_VOWEL: u8 =
+                DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA | DIAC_TANWIN | DIAC_SHADDA;
+            if index.diacritic_mask_at(i) & OWN_VOWEL != 0 && current_char != 'آ' {
+                i += 1;
+                continue;
+            }
+            let vowel = index.vowel_on_previous_letter(i);
             let has_basic_madd = if current_char == 'آ' {
                 true // Alif Madd is always considered valid for madd
             } else {
                 match (current_char, vowel) {
+                    // The superscript Alef is written *only* as a Madd Alif —
+                    // it never appears as anything else, and the letter it sits
+                    // on may be a silent seat carrying no vowel of its own
+                    // (ٱلصَّلَوٰة، أَدْرَىٰكَ), so there is nothing to check.
+                    ('\u{0670}', _) => true,
                     ('ا', Some('\u{064E}')) => true, // Alif needs Fatha for basic madd
                     ('و', Some('\u{064F}')) => true, // Waw needs Damma for basic madd
                     ('ي' | '\u{06CC}', Some('\u{0650}')) => true, // Ya needs Kasra for basic madd
@@ -77,59 +108,108 @@ pub(crate) fn detect_madd_rules_indexed(
     detect_silah_rules_indexed(verse_chars, index, matches, style);
 }
 
+/// True when the Madd letter at `idx` ends a *grammatical* word that the
+/// script writes joined to the next one.
+///
+/// The vocative يَا and the ها of التنبيه are written attached to what they
+/// introduce — `يَٰٓأَيُّهَا`, `يَٰٓأَهْلَ`, `هَٰٓأَنتُمْ` — but they are separate words,
+/// so the Hamza that follows opens a new word and the Madd is Munfasil, not
+/// Muttasil. Both are written as a bare ي / ه with a superscript Alef.
+pub(crate) fn is_detached_particle(
+    verse_chars: &[char],
+    index: &VerseIndex,
+    idx: usize,
+) -> bool {
+    if verse_chars.get(idx) != Some(&'\u{0670}') {
+        return false;
+    }
+    let Some(prev) = index.prev_letter_before(idx) else {
+        return false;
+    };
+    let opens_word = match index.prev_letter_before(prev) {
+        None => true,
+        Some(p) => index.has_boundary_between(p + 1, prev),
+    };
+    if !opens_word {
+        return false;
+    }
+    match verse_chars[prev] {
+        'ي' => true,
+        // ها التنبيه only separates before a word that itself opens with a
+        // Hamza on an Alif seat (هَٰٓأَنتُمْ). هَٰٓؤُلَآءِ has fused into one word
+        // and is read as a single Muttasil.
+        'ه' => index
+            .next_pronounced_letter(idx)
+            .is_some_and(|n| matches!(verse_chars[n], 'أ' | 'إ' | 'ا' | 'آ')),
+        _ => false,
+    }
+}
+
+/// True when the letter at `idx` carries no diacritic of its own.
+fn is_bare(index: &VerseIndex, idx: usize) -> bool {
+    index.diacritic_mask_at(idx) & crate::utils::DIAC_ANY == 0
+}
+
+/// True when the recitation stops on the letter at `idx` — nothing but a Waqf
+/// sign follows it, or it is the last letter of the verse.
+///
+/// A verse is a stopping place in its own right, which is why the final Madd
+/// letter of nearly every ayah is a Madd 'Arid li-Sukun.
+fn stops_after(verse_chars: &[char], index: &VerseIndex, idx: usize) -> bool {
+    match index.next_letter_after(idx) {
+        None => true,
+        Some(next) => verse_chars[idx + 1..next]
+            .iter()
+            .any(|&c| matches!(c, '\u{06D6}'..='\u{06DD}' | '\u{FD3E}' | '\u{FD3F}')),
+    }
+}
+
 fn detect_madd(
     madd_letter: char,
     verse_chars: &[char],
     index: &VerseIndex,
     current_index: usize,
 ) -> Option<TajweedRuleType> {
-    let preceding_vowel = index.preceding_vowel(current_index);
+    let preceding_vowel = index.vowel_on_previous_letter(current_index);
 
-    // If Waw/Ya carries a Fatha, only Madd Lin is possible.
+    // A Waw/Ya carrying a Sukun after a Fatha is a *lin* letter (خَوْف، بَيْت).
+    // It is only *lengthened* when the reciter stops on the letter after it,
+    // whose Sukun is then temporary — مد اللين العارض للسكون. Read on, a lin
+    // letter is simply pronounced softly, with no madd.
     if matches!(madd_letter, 'و' | 'ي' | '\u{06CC}') && preceding_vowel == Some('\u{064E}') {
-        // Check for Madd Lin (sukun on the madd letter or the following letter)
-        if index.has_sukun_after(current_index) {
+        if !index.has_sukun_after(current_index) && !is_bare(index, current_index) {
+            return None;
+        }
+        let next = index.next_pronounced_letter(current_index)?;
+        if !index.has_boundary_between(current_index + 1, next)
+            && stops_after(verse_chars, index, next)
+        {
             return Some(TajweedRuleType::MaddLin);
         }
-
-        if let Some(next_idx) = index.next_letter_after(current_index) {
-            if index.has_sukun_after(next_idx) {
-                return Some(TajweedRuleType::MaddLin);
-            }
-        }
-
         return None;
     }
 
-    // 1. Check for Madd Lazim:
-    // (a) Madd letter followed by letter with shadda (e.g. الضالين, دابة, الحاقة)
-    if let Some(next_idx) = index.next_letter_after(current_index) {
-        if index.has_shadda_after(next_idx) {
+    // 1. Madd Lazim Kalimi — the Madd letter is followed, *in the same word*,
+    // by a letter carrying a permanent Shadda (muthaqqal: ٱلضَّآلِّينَ, دَآبَّة)
+    // or Sukun (mukhaffaf: ءَآلْـَٰٔنَ).
+    //
+    // Both halves matter. A Shadda opening the *next* word (وَمِمَّا رَّزَقْنَٰهُمْ)
+    // leaves the Madd natural, and a Shadda on the Madd letter itself
+    // (إِيَّاكَ) is not a Sukun after it at all.
+    if let Some(next_idx) = index.next_pronounced_letter(current_index) {
+        if !index.has_boundary_between(current_index + 1, next_idx)
+            && (index.has_shadda_after(next_idx) || index.has_sukun_after(next_idx))
+        {
             return Some(TajweedRuleType::MaddLazim);
         }
     }
-    // (b) Alif preceded by letter with shadda (e.g. أَمَّا)
-    if madd_letter == 'ا' {
-        if let Some(prev_idx) = index.prev_letter_before(current_index) {
-            if index.has_shadda_after(prev_idx) {
-                return Some(TajweedRuleType::MaddLazim);
-            }
-        }
-    }
 
-    // 2. Check for Madd Badal: hamza BEFORE madd letter (same word)
-    if let Some(prev_idx) = index.prev_letter_before(current_index) {
-        if is_hamza(verse_chars[prev_idx])
-            && !index.has_boundary_between(prev_idx + 1, current_index) {
-                return Some(TajweedRuleType::MaddBadal);
-            }
-    }
-
-    // 3. Check for Madd Muttasil/Munfasil: madd letter followed by hamza
+    // 2. Check for Madd Muttasil/Munfasil: madd letter followed by hamza
     if let Some(next_idx) = index.next_letter_after(current_index) {
         if is_hamza(verse_chars[next_idx]) {
             // Check if there's a word boundary between madd letter and hamza
-            let has_word_boundary = index.has_boundary_between(current_index + 1, next_idx);
+            let has_word_boundary = index.has_boundary_between(current_index + 1, next_idx)
+                || is_detached_particle(verse_chars, index, current_index);
 
             return if has_word_boundary {
                 Some(TajweedRuleType::MaddMunfasil)
@@ -139,42 +219,39 @@ fn detect_madd(
         }
     }
 
-    // 4. Check for Madd Lazim: madd letter followed by letter with shadda
-    if let Some(next_idx) = index.next_letter_after(current_index) {
-        if index.has_shadda_after(next_idx) {
-            return Some(TajweedRuleType::MaddLazim);
-        }
-    }
 
-    // 5. Madd Lin already handled above for Waw/Ya with Fatha
 
-    // 6. Madd Arid li-Sukun: Madd letter followed by a letter with explicit Sukun,
-    //    or followed by the final letter of a word that has a Waqf / verse end sign after it.
-    //    Source: quranica.com — "Only occurs at Waqf; if continuing, reverts to MaddTabeei."
-    if let Some(next_idx) = index.next_letter_after(current_index) {
-        if index.has_sukun_after(next_idx) {
-            return Some(TajweedRuleType::MaddArid);
-        }
-        let has_waqf_or_verse_end = verse_chars[next_idx..].iter().any(|&c| {
-            matches!(
-                c,
-                '\u{06D5}'..='\u{06DC}'
-                | '\u{06DD}'..='\u{06DF}'
-                | '\u{FD3E}' | '\u{FD3F}'
-            )
-        });
-        if has_waqf_or_verse_end && index.is_word_end(next_idx) {
+    // 3. Madd Arid li-Sukun — the Madd letter is followed, in the same word,
+    //    by the letter the reciter stops on. The Sukun is *temporary*: it only
+    //    exists because the recitation halts there, so the letter has to be
+    //    the last one before a Waqf sign or the end of the verse.
+    //    Source: quranica.com — "Only occurs at Waqf; if continuing, reverts
+    //    to MaddTabeei."
+    if let Some(next_idx) = index.next_pronounced_letter(current_index) {
+        if !index.has_boundary_between(current_index + 1, next_idx)
+            && stops_after(verse_chars, index, next_idx)
+        {
             return Some(TajweedRuleType::MaddArid);
         }
     }
 
-    // 7. Check if Madd letter is dropped in continuous reading (Wasl) before a Saakin letter / Hamzat Wasl
+    // 4. Madd Badal — a Hamza *before* the Madd letter, in the same word
+    //    (ءَامَنَ، أُوتُوا۟). It ranks below the stop: at a Waqf the temporary
+    //    Sukun is what sets the length.
+    if let Some(prev_idx) = index.prev_letter_before(current_index) {
+        if is_hamza(verse_chars[prev_idx])
+            && !index.has_boundary_between(prev_idx + 1, current_index) {
+                return Some(TajweedRuleType::MaddBadal);
+            }
+    }
+
+    // 5. Check if Madd letter is dropped in continuous reading (Wasl) before a Saakin letter / Hamzat Wasl
     // (حذف حرف المد لفظاً عند التقاء الساكنين في الوصل — مثل: في الجحيم، قالوا ابنوا، إذا الشمس)
     if is_madd_dropped_before_sakin(verse_chars, index, current_index) {
         return None;
     }
 
-    // 8. Default: Natural madd (Tabee'i) - if conditions are met
+    // 6. Default: Natural madd (Tabee'i) - if conditions are met
     // Natural madd occurs when madd letter has its corresponding vowel and is not followed by hamza or shadda
     Some(TajweedRuleType::MaddTabeei)
 }
@@ -248,6 +325,23 @@ pub(crate) fn detect_silah_rules_indexed(
     matches: &mut Vec<RuleMatch>,
     style: RecitationStyle,
 ) {
+    // When the text spells the Silah out with the small Waw / small Ya, those
+    // marks are the authority on where it occurs, and the word-shape heuristic
+    // below would only add false positives — a word-final voweled Haa is very
+    // often part of the root (ٱللَّهِ، وَجْهِ) and not a pronoun at all.
+    // A script that marks its own orthography — Alif Wasla, the superscript
+    // Alef, the silence marks, the Silah marks — states where the Silah is.
+    // Where it does, the *absence* of a Silah mark means there is none, and the
+    // word-shape heuristic below would only add false positives: a word-final
+    // voweled Haa is very often part of the root (ٱللَّهِ، تَنتَهِ) or a pronoun
+    // that simply is not lengthened (أَنزَلْنَٰهُ).
+    let silah_is_written = verse_chars.iter().any(|c| {
+        matches!(
+            c,
+            '\u{06E5}' | '\u{06E6}' | '\u{0670}' | '\u{0671}' | '\u{06DF}' | '\u{06E0}'
+        )
+    });
+
     let mut i = 0;
     while i < verse_chars.len() {
         let ch = verse_chars[i];
@@ -274,12 +368,23 @@ pub(crate) fn detect_silah_rules_indexed(
             });
         }
 
-        // 2. Haa Al-Kinayah (ـهُ / ـهِ / ه) at word end between two voweled letters
-        if ch == 'ه' || ch == 'ة' {
+        // 2. Haa Al-Kinayah (ـهُ / ـهِ) at word end between two voweled letters
+        if ch == 'ه' && !silah_is_written {
             if let Some(next_letter_idx) = index.next_letter_after(i) {
                 if index.has_boundary_between(i + 1, next_letter_idx) {
                     if let Some(prev_letter_idx) = index.prev_letter_before(i) {
                         if !index.has_boundary_between(prev_letter_idx + 1, i) {
+                            // The Haa of the name of Allah (ٱللَّهِ، لِلَّهِ) is
+                            // part of the word, not a pronoun — no Silah.
+                            let is_lafz_al_jalalah = verse_chars[prev_letter_idx] == 'ل'
+                                && index.has_shadda_after(prev_letter_idx)
+                                && index
+                                    .prev_letter_before(prev_letter_idx)
+                                    .is_some_and(|p| verse_chars[p] == 'ل');
+                            if is_lafz_al_jalalah {
+                                i += 1;
+                                continue;
+                            }
                             let has_prev_vowel = index.has_diacritic_after_mask(prev_letter_idx, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA);
                             let has_ha_vowel = index.has_diacritic_after_mask(i, DIAC_DAMMA | DIAC_KASRA);
                             let has_next_vowel = index.has_diacritic_after_mask(next_letter_idx, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA | DIAC_TANWIN);
@@ -327,7 +432,7 @@ mod tests {
 
     #[test]
     fn test_madd_waw_with_damma() {
-        let chars: Vec<char> = "قُولُ".chars().collect();
+        let chars: Vec<char> = "قُولُ لَهُمْ".chars().collect();
         let index = VerseIndex::new(&chars);
         let mut matches = Vec::new();
         detect_madd_rules_indexed(&chars, &index, &mut matches, RecitationStyle::Hafs);
