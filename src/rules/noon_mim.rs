@@ -20,7 +20,6 @@ pub(crate) fn detect_noon_mim_rules_indexed(
     matches: &mut Vec<RuleMatch>,
     style: RecitationStyle,
 ) {
-
     let mut i = 0;
     while i < verse_chars.len() {
         let current_char = verse_chars[i];
@@ -29,21 +28,21 @@ pub(crate) fn detect_noon_mim_rules_indexed(
             && (current_char == 'ن' || current_char == 'م')
             && !is_idgham_product(verse_chars, index, i)
         {
-                let mut end_idx = i + 1;
-                while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
-                    end_idx += 1;
-                }
-                matches.push(RuleMatch {
-                    start_index: i,
-                    end_index: end_idx,
-                    target_letter: current_char,
-                    following_letter: None,
-                    rule: TajweedRule::from_type(TajweedRuleType::GhunnahMushadda, style),
-                    context: get_context(verse_chars, i, 3),
-                });
-                // Fall through: a Noon/Mim can carry a Shadda *and* a Tanwin
-                // (صُمٌّ وَ، مُّسَمًّى، بِغَمٍّ), and the Tanwin has rules of its own.
+            let mut end_idx = i + 1;
+            while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
+                end_idx += 1;
             }
+            matches.push(RuleMatch {
+                start_index: i,
+                end_index: end_idx,
+                target_letter: current_char,
+                following_letter: None,
+                rule: TajweedRule::from_type(TajweedRuleType::GhunnahMushadda, style),
+                context: get_context(verse_chars, i, 3),
+            });
+            // Fall through: a Noon/Mim can carry a Shadda *and* a Tanwin
+            // (صُمٌّ وَ، مُّسَمًّى، بِغَمٍّ), and the Tanwin has rules of its own.
+        }
 
         // Noon or Mim with Sukun/Tanwin
         if current_char == 'ن' || current_char == 'م' {
@@ -99,7 +98,9 @@ fn determine_rule_for_noon(
     }
 
     // 2. Izhar Mutlaq (الإظهار المطلق) - Noon Sakinah in same word followed by Waw or Ya (e.g. دنيا, قنوان, صنوان, بنيان)
-    if is_same_word && (following_letter == 'ي' || following_letter == 'و' || following_letter == '\u{06CC}') {
+    if is_same_word
+        && (following_letter == 'ي' || following_letter == 'و' || following_letter == '\u{06CC}')
+    {
         return TajweedRuleType::IzharMutlaq;
     }
 
@@ -212,8 +213,7 @@ fn check_noon_mim(
     // relies on this: it leaves the Sukun off a Mim Sakinah standing before
     // م or ب (قُلُوبِهِم مَّرَضٌ, هُم بِمُؤْمِنِينَ), because the following
     // Shadda / Ikhfaa mark already carries the information.
-    let unmarked_sakinah =
-        matches!(current_char, 'ن' | 'م') && index.diacritic_mask_at(i) == 0;
+    let unmarked_sakinah = matches!(current_char, 'ن' | 'م') && index.diacritic_mask_at(i) == 0;
 
     if has_sukun_or_tanwin || unmarked_sakinah {
         if let Some(next_char_index) = index.next_letter_after(i) {
@@ -532,7 +532,8 @@ pub(crate) fn detect_idgham_mutajanisayn_indexed(
         let ch = verse_chars[i];
         // Check if this letter has Sukun or has no short vowel (unvoweled in Uthmani script)
         let is_sakin = index.has_sukun_after(i)
-            || !index.has_diacritic_after_mask(i, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA | DIAC_TANWIN);
+            || !index
+                .has_diacritic_after_mask(i, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA | DIAC_TANWIN);
         if is_sakin {
             if let Some(next_idx) = index.next_letter_after(i) {
                 let next_ch = verse_chars[next_idx];
@@ -542,10 +543,7 @@ pub(crate) fn detect_idgham_mutajanisayn_indexed(
                         end_index: next_idx + 1,
                         target_letter: ch,
                         following_letter: Some(next_ch),
-                        rule: TajweedRule::from_type(
-                            TajweedRuleType::IdghamMutajanisayn,
-                            style,
-                        ),
+                        rule: TajweedRule::from_type(TajweedRuleType::IdghamMutajanisayn, style),
                         context: get_context(verse_chars, i, 3),
                     });
                 }
@@ -578,7 +576,8 @@ pub(crate) fn detect_idgham_mutaqaribayn_indexed(
     while i < verse_chars.len() {
         let ch = verse_chars[i];
         let is_sakin = index.has_sukun_after(i)
-            || !index.has_diacritic_after_mask(i, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA | DIAC_TANWIN);
+            || !index
+                .has_diacritic_after_mask(i, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA | DIAC_TANWIN);
         if is_sakin {
             if let Some(next_idx) = index.next_letter_after(i) {
                 let next_ch = verse_chars[next_idx];
@@ -593,10 +592,7 @@ pub(crate) fn detect_idgham_mutaqaribayn_indexed(
                         end_index: next_idx + 1,
                         target_letter: ch,
                         following_letter: Some(next_ch),
-                        rule: TajweedRule::from_type(
-                            TajweedRuleType::IdghamMutaqaribayn,
-                            style,
-                        ),
+                        rule: TajweedRule::from_type(TajweedRuleType::IdghamMutaqaribayn, style),
                         context: get_context(verse_chars, i, 3),
                     });
                 }
@@ -696,9 +692,7 @@ pub(crate) fn detect_hamzat_wasl_indexed(
                 if ch == 'ا' {
                     // Check if any of the WASL_NOUNS match at this position
                     let remaining: String = verse_chars[i..].iter().collect();
-                    let is_wasl_noun = WASL_NOUNS
-                        .iter()
-                        .any(|noun| remaining.starts_with(noun));
+                    let is_wasl_noun = WASL_NOUNS.iter().any(|noun| remaining.starts_with(noun));
 
                     if is_wasl_noun {
                         matches.push(RuleMatch {
@@ -737,15 +731,21 @@ pub(crate) fn detect_ishmam_rules_indexed(
 
         // 1. Direct detection via Uthmani Ishmam/Tashil mark U+06EC or U+06EB on/adjacent to Noon
         if ch == '\u{06EC}' || ch == '\u{06EB}' {
-            if let Some(target_idx) = index.next_letter_after(i).or_else(|| index.prev_letter_before(i)) {
+            if let Some(target_idx) = index
+                .next_letter_after(i)
+                .or_else(|| index.prev_letter_before(i))
+            {
                 let target_ch = verse_chars[target_idx];
                 if target_ch == 'ن' {
                     let start_idx = target_idx;
                     let mut end_idx = target_idx.max(i) + 1;
-                    while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
+                    while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx])
+                    {
                         end_idx += 1;
                     }
-                    if !matches.iter().any(|m| m.rule.rule_type == TajweedRuleType::Ishmam && m.start_index == start_idx) {
+                    if !matches.iter().any(|m| {
+                        m.rule.rule_type == TajweedRuleType::Ishmam && m.start_index == start_idx
+                    }) {
                         matches.push(RuleMatch {
                             start_index: start_idx,
                             end_index: end_idx,
@@ -767,19 +767,29 @@ pub(crate) fn detect_ishmam_rules_indexed(
                     if let Some(mim_idx) = index.next_letter_after(second_idx) {
                         if verse_chars[mim_idx] == 'م' {
                             if let Some(noon_idx) = index.next_letter_after(mim_idx) {
-                                if verse_chars[noon_idx] == 'ن' && index.has_shadda_after(noon_idx) {
+                                if verse_chars[noon_idx] == 'ن' && index.has_shadda_after(noon_idx)
+                                {
                                     let mut end_idx = noon_idx + 1;
-                                    while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
+                                    while end_idx < verse_chars.len()
+                                        && is_tajweed_ignorable(verse_chars[end_idx])
+                                    {
                                         end_idx += 1;
                                     }
                                     let start_idx = noon_idx;
-                                    if !matches.iter().any(|m| m.rule.rule_type == TajweedRuleType::Ishmam && (m.start_index == start_idx || m.start_index <= mim_idx)) {
+                                    if !matches.iter().any(|m| {
+                                        m.rule.rule_type == TajweedRuleType::Ishmam
+                                            && (m.start_index == start_idx
+                                                || m.start_index <= mim_idx)
+                                    }) {
                                         matches.push(RuleMatch {
                                             start_index: start_idx,
                                             end_index: end_idx,
                                             target_letter: 'ن',
                                             following_letter: None,
-                                            rule: TajweedRule::from_type(TajweedRuleType::Ishmam, style),
+                                            rule: TajweedRule::from_type(
+                                                TajweedRuleType::Ishmam,
+                                                style,
+                                            ),
                                             context: get_context(verse_chars, noon_idx, 3),
                                         });
                                     }

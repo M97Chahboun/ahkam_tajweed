@@ -52,8 +52,7 @@ pub(crate) fn detect_silent_letters_indexed(
         let marked_silent = has_mark(verse_chars, i, '\u{06DF}');
         // A Waw or Alif carrying a superscript Alef is only its seat: the Alef
         // above is what is read (ٱلصَّلَوٰةَ، ٱلْحَيَوٰةِ، ٱلرِّبَوٰا۟).
-        let is_seat = matches!(ch, 'و' | 'ا')
-            && verse_chars.get(i + 1) == Some(&'\u{0670}');
+        let is_seat = matches!(ch, 'و' | 'ا') && verse_chars.get(i + 1) == Some(&'\u{0670}');
 
         if !marked_silent && !is_seat {
             continue;

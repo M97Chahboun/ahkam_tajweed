@@ -57,24 +57,55 @@ struct SymbolRule {
 
 const SYMBOL_RULES: &[SymbolRule] = &[
     // Small High Meem U+06E2 — marks an Iqlab; target is the Noon before it.
-    SymbolRule { char: '\u{06E2}', rule: TajweedRuleType::Iqlab,         offset: -1 },
+    SymbolRule {
+        char: '\u{06E2}',
+        rule: TajweedRuleType::Iqlab,
+        offset: -1,
+    },
     // The dagger Alif (U+0670) and the Silah marks (U+06E5 / U+06E6) are Madd
     // letters, not bare symbols: the madd module classifies them by context
     // (Tabee'i, 'Arid li-Sukun, Munfasil), so they are not listed here.
     // Waqf / Wasl marks.
-    SymbolRule { char: '\u{06D6}', rule: TajweedRuleType::WaslAwla,      offset:  0 },  // صلى
-    SymbolRule { char: '\u{06D7}', rule: TajweedRuleType::WaqfAwla,      offset:  0 },  // قلى
-    SymbolRule { char: '\u{06DA}', rule: TajweedRuleType::WaqfJaiz,      offset:  0 },  // ج
-    SymbolRule { char: '\u{06DB}', rule: TajweedRuleType::WaqfMuanaqah,  offset:  0 },  // ∴
-    SymbolRule { char: '\u{06D5}', rule: TajweedRuleType::WaqfLazim,     offset:  0 },  // مـ
-    SymbolRule { char: '\u{06D9}', rule: TajweedRuleType::WaqfMamnou,    offset:  0 },  // لا
-    SymbolRule { char: '\u{06DC}', rule: TajweedRuleType::Sakt,          offset:  0 },  // س
+    SymbolRule {
+        char: '\u{06D6}',
+        rule: TajweedRuleType::WaslAwla,
+        offset: 0,
+    }, // صلى
+    SymbolRule {
+        char: '\u{06D7}',
+        rule: TajweedRuleType::WaqfAwla,
+        offset: 0,
+    }, // قلى
+    SymbolRule {
+        char: '\u{06DA}',
+        rule: TajweedRuleType::WaqfJaiz,
+        offset: 0,
+    }, // ج
+    SymbolRule {
+        char: '\u{06DB}',
+        rule: TajweedRuleType::WaqfMuanaqah,
+        offset: 0,
+    }, // ∴
+    SymbolRule {
+        char: '\u{06D5}',
+        rule: TajweedRuleType::WaqfLazim,
+        offset: 0,
+    }, // مـ
+    SymbolRule {
+        char: '\u{06D9}',
+        rule: TajweedRuleType::WaqfMamnou,
+        offset: 0,
+    }, // لا
+    SymbolRule {
+        char: '\u{06DC}',
+        rule: TajweedRuleType::Sakt,
+        offset: 0,
+    }, // س
 ];
 
 // ---------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------
-
 
 /// Collapse [`RuleMatch`] entries that report the *same* rule over the same
 /// stretch of text.
@@ -162,8 +193,8 @@ impl TajweedProcessor {
         let mut has_madd_chars = false;
         let mut has_qalqalah = false;
         let mut has_ra = false;
-        let mut has_hamza = false;       // Naql + Tasheel triggers
-        let mut has_silent = false;      // letters written but not pronounced
+        let mut has_hamza = false; // Naql + Tasheel triggers
+        let mut has_silent = false; // letters written but not pronounced
 
         for (i, &c) in chars.iter().enumerate() {
             // ── Check the explicit-symbol table first ──────────────────────
@@ -229,8 +260,7 @@ impl TajweedProcessor {
                                 TajweedRuleType::MaddMuttasil
                             }
                         } else if !index.has_boundary_between(i + 1, next_idx)
-                            && (index.has_shadda_after(next_idx)
-                                || index.has_sukun_after(next_idx))
+                            && (index.has_shadda_after(next_idx) || index.has_sukun_after(next_idx))
                         {
                             // Permanent Sukun in the same word — Madd Lazim
                             // Kalimi (ٱلضَّآلِّينَ, ءَآلْـَٰٔنَ).
@@ -329,12 +359,7 @@ impl TajweedProcessor {
         }
 
         if has_silent {
-            rules::silent::detect_silent_letters_indexed(
-                &chars,
-                &index,
-                &mut matches,
-                self.style,
-            );
+            rules::silent::detect_silent_letters_indexed(&chars, &index, &mut matches, self.style);
         }
 
         // Tafkhim Lafz Al-Jalalah also requires Lam as a trigger.
@@ -350,22 +375,12 @@ impl TajweedProcessor {
         // Warsh mushaf the transfer is already spelled out and no Hamza character
         // survives, so a Lam alone is enough to make the pass worth running.
         if has_hamza || has_lam {
-            rules::noon_mim::detect_naql_rules_indexed(
-                &chars,
-                &index,
-                &mut matches,
-                self.style,
-            );
+            rules::noon_mim::detect_naql_rules_indexed(&chars, &index, &mut matches, self.style);
         }
 
         if has_hamza {
             // Tasheel: Warsh — soften second Hamza when two consecutive Hamzas in same word
-            rules::noon_mim::detect_tasheel_rules_indexed(
-                &chars,
-                &index,
-                &mut matches,
-                self.style,
-            );
+            rules::noon_mim::detect_tasheel_rules_indexed(&chars, &index, &mut matches, self.style);
         }
 
         // Idgham Mutajanisayn: same-articulation-point assimilation (ط+ت, ذ+ظ, د+ت)
@@ -385,29 +400,14 @@ impl TajweedProcessor {
 
         // Hamzat Al-Wasl: annotate connecting Alif at word starts (always runs if there's a Lam)
         if has_lam {
-            rules::noon_mim::detect_hamzat_wasl_indexed(
-                &chars,
-                &index,
-                &mut matches,
-                self.style,
-            );
+            rules::noon_mim::detect_hamzat_wasl_indexed(&chars, &index, &mut matches, self.style);
         }
 
         // Tafkhim Isti'la Letters (خص ضغط قظ)
-        rules::ra::detect_istiila_rules_indexed(
-            &chars,
-            &index,
-            &mut matches,
-            self.style,
-        );
+        rules::ra::detect_istiila_rules_indexed(&chars, &index, &mut matches, self.style);
 
         // Al-Ishmam / Al-Ikhtilas (تأمنا / تامنا في يوسف)
-        rules::noon_mim::detect_ishmam_rules_indexed(
-            &chars,
-            &index,
-            &mut matches,
-            self.style,
-        );
+        rules::noon_mim::detect_ishmam_rules_indexed(&chars, &index, &mut matches, self.style);
 
         // Remove any duplicates before returning.
         dedup_matches(&mut matches);
@@ -763,14 +763,7 @@ mod tests {
     #[test]
     fn test_annotation_izhar_halqi_examples() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
-        let verses = [
-            "مَنْ آمَنَ",
-            "مِنْ هَادٍ",
-            "مِنْ عِلْمٍ",
-            "مِنْ حَكِيمٍ",
-            "مِنْ غِلٍّ",
-            "مِنْ خَيْرٍ",
-        ];
+        let verses = ["مَنْ آمَنَ", "مِنْ هَادٍ", "مِنْ عِلْمٍ", "مِنْ حَكِيمٍ", "مِنْ غِلٍّ", "مِنْ خَيْرٍ"];
 
         for verse in verses {
             assert!(
@@ -785,12 +778,7 @@ mod tests {
     #[test]
     fn test_annotation_idgham_ghunnah_examples() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
-        let verses = [
-            "مَنْ يَقُولُ",
-            "مِنْ نَذِيرٍ",
-            "مِنْ مَالٍ",
-            "مِنْ وَاقٍ",
-        ];
+        let verses = ["مَنْ يَقُولُ", "مِنْ نَذِيرٍ", "مِنْ مَالٍ", "مِنْ وَاقٍ"];
 
         for verse in verses {
             assert!(
@@ -1108,10 +1096,7 @@ mod tests {
             "خَوْفٍ (Fatha then a Sakin Waw) should yield MaddLin or MaddTabeei"
         );
         // وَقْفٌ opens with a *voweled* Waw — a consonant, not a Lin letter.
-        assert!(!has_rule(
-            &p.process_verse("وَقْفٌ"),
-            TajweedRuleType::MaddLin
-        ));
+        assert!(!has_rule(&p.process_verse("وَقْفٌ"), TajweedRuleType::MaddLin));
     }
 
     /// MaddSilah – integration with two Small-Waw instances

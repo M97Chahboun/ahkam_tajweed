@@ -9,8 +9,8 @@
 //! - [`ra`]: Ra emphasis and Allah name emphasis rules
 //! - [`silent`]: Letters written but not pronounced
 
-pub mod letters;
 pub mod lam_al_tarif;
+pub mod letters;
 pub mod madd;
 pub mod noon_mim;
 pub mod qalqalah;
