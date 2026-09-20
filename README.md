@@ -1,6 +1,9 @@
 
 # Ahkam Tajweed
 
+[![CI](https://github.com/M97Chahboun/ahkam_tajweed/actions/workflows/ci.yml/badge.svg)](https://github.com/M97Chahboun/ahkam_tajweed/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A comprehensive, high-performance Rust library for detecting and processing Islamic Quranic recitation rules (Tajweed) with full support for the Warsh ('an Nafi') and Hafs ('an 'Asim) narrations.
 
 ## Demo
