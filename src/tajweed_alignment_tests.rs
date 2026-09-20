@@ -1182,10 +1182,14 @@ mod tajweed_alignment_tests {
 
     #[test]
     fn test_hamzat_wasl_definite_article() {
-        // الْحَمْدُ — Alif of Al- has Hamzat Wasl
-        let m = hafs().process_verse("الْحَمْدُ");
+        // الْحَمْدُ — Alif of Al- has Hamzat Wasl. It only *drops* when
+        // something precedes it, so it is reported once the phrase reads on
+        // into it, not when it opens the recitation.
+        let m = hafs().process_verse("رَبِّ الْحَمْدُ");
         assert!(has_rule(&m, TajweedRuleType::HamzatWasl),
             "HamzatWasl for definite article in [الْحَمْدُ]");
+        assert!(!has_rule(&hafs().process_verse("الْحَمْدُ"), TajweedRuleType::HamzatWasl),
+            "a Hamzat Wasl opening the recitation is pronounced, not dropped");
     }
 
     #[test]
@@ -1234,14 +1238,15 @@ mod tajweed_alignment_tests {
 
     #[test]
     fn test_madd_dropped_before_sakin_in_wasl() {
-        // فِي الْجَحِيمِ — Ya in فِي is dropped in Wasl
+        // فِي الْجَحِيمِ — the Ya of فِي (index 2) is dropped in Wasl
         let m = hafs().process_verse("فِي الْجَحِيمِ");
-        let fi_madd = m.iter().find(|r| r.start_index <= 1 && r.rule.rule_type == TajweedRuleType::MaddTabeei);
+        let fi_madd = m.iter().find(|r| r.start_index == 2 && r.rule.rule_type == TajweedRuleType::MaddTabeei);
         assert!(fi_madd.is_none(), "Madd in [فِي] must be dropped before [الْجَحِيمِ]");
 
-        // قَالُوا ابْنُوا — Waw in قَالُوا is dropped in Wasl
+        // قَالُوا ابْنُوا — the Waw of قَالُوا (index 5) is dropped in Wasl.
+        // The Alif of قَا at index 2 is an ordinary Madd Tabee'i and stays.
         let m2 = hafs().process_verse("قَالُوا ابْنُوا");
-        let qaloo_madd = m2.iter().find(|r| r.start_index <= 5 && r.rule.rule_type == TajweedRuleType::MaddTabeei);
+        let qaloo_madd = m2.iter().find(|r| r.start_index == 5 && r.rule.rule_type == TajweedRuleType::MaddTabeei);
         assert!(qaloo_madd.is_none(), "Madd in [قَالُوا] must be dropped before [ابْنُوا]");
     }
 

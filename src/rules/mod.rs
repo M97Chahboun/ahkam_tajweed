@@ -7,6 +7,7 @@
 //! - [`madd`]: Madd (vowel prolongation) rules
 //! - [`qalqalah`]: Qalqalah (bouncing) rules
 //! - [`ra`]: Ra emphasis and Allah name emphasis rules
+//! - [`silent`]: Letters written but not pronounced
 
 pub mod letters;
 pub mod lam_al_tarif;
@@ -14,9 +15,11 @@ pub mod madd;
 pub mod noon_mim;
 pub mod qalqalah;
 pub mod ra;
+pub mod silent;
 
 pub use lam_al_tarif::detect_lam_al_tarif_rules;
 pub use madd::detect_madd_rules;
 pub use noon_mim::detect_noon_mim_rules;
 pub use qalqalah::detect_qalqalah_rules;
 pub use ra::{detect_allah_name_rules, detect_ra_rules};
+pub use silent::detect_silent_letters;

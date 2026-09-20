@@ -58,11 +58,9 @@ struct SymbolRule {
 const SYMBOL_RULES: &[SymbolRule] = &[
     // Small High Meem U+06E2 — marks an Iqlab; target is the Noon before it.
     SymbolRule { char: '\u{06E2}', rule: TajweedRuleType::Iqlab,         offset: -1 },
-    // Dagger Alif U+0670 — natural Madd.
-    SymbolRule { char: '\u{0670}', rule: TajweedRuleType::MaddTabeei,    offset:  0 },
-    // Small Waw U+06E5 / Small Ya U+06E6 — Silah.
-    SymbolRule { char: '\u{06E5}', rule: TajweedRuleType::MaddSilah,     offset:  0 },
-    SymbolRule { char: '\u{06E6}', rule: TajweedRuleType::MaddSilah,     offset:  0 },
+    // The dagger Alif (U+0670) and the Silah marks (U+06E5 / U+06E6) are Madd
+    // letters, not bare symbols: the madd module classifies them by context
+    // (Tabee'i, 'Arid li-Sukun, Munfasil), so they are not listed here.
     // Waqf / Wasl marks.
     SymbolRule { char: '\u{06D6}', rule: TajweedRuleType::WaslAwla,      offset:  0 },  // صلى
     SymbolRule { char: '\u{06D7}', rule: TajweedRuleType::WaqfAwla,      offset:  0 },  // قلى
@@ -165,6 +163,7 @@ impl TajweedProcessor {
         let mut has_qalqalah = false;
         let mut has_ra = false;
         let mut has_hamza = false;       // Naql + Tasheel triggers
+        let mut has_silent = false;      // letters written but not pronounced
 
         for (i, &c) in chars.iter().enumerate() {
             // ── Check the explicit-symbol table first ──────────────────────
@@ -218,7 +217,13 @@ impl TajweedProcessor {
                         TajweedRuleType::MaddLazim
                     } else if let Some(next_idx) = index.next_pronounced_letter(i) {
                         if crate::utils::is_hamza(chars[next_idx]) {
-                            if index.has_boundary_between(i + 1, next_idx) {
+                            let separated = index.has_boundary_between(i + 1, next_idx)
+                                || rules::madd::is_detached_particle(
+                                    &chars,
+                                    &index,
+                                    i.saturating_sub(1),
+                                );
+                            if separated {
                                 TajweedRuleType::MaddMunfasil
                             } else {
                                 TajweedRuleType::MaddMuttasil
@@ -234,7 +239,9 @@ impl TajweedProcessor {
                             TajweedRuleType::MaddMuttasil
                         }
                     } else {
-                        TajweedRuleType::MaddMuttasil
+                        // Nothing follows in this verse: the Madd is simply
+                        // held at the stop.
+                        TajweedRuleType::MaddTabeei
                     };
                     matches.push(RuleMatch {
                         start_index: i.saturating_sub(1),
@@ -244,6 +251,23 @@ impl TajweedProcessor {
                         rule: TajweedRule::from_type(rule, self.style),
                         context: crate::utils::get_context(&chars, i, 3),
                     });
+                }
+
+                // ── Silence marks and the superscript Alef ──────────────────
+                '\u{06DF}' | '\u{06E0}' => {
+                    has_silent = true;
+                }
+
+                // The superscript Alef is a Madd letter, and the Waw or Alif it
+                // sits on is a silent seat.
+                '\u{0670}' => {
+                    has_madd_chars = true;
+                    has_silent = true;
+                }
+
+                // ── Silah marks — a Madd on the pronoun's Haa ────────────────
+                '\u{06E5}' | '\u{06E6}' => {
+                    has_madd_chars = true;
                 }
 
                 // ── Qalqalah letters ─────────────────────────────────────────
@@ -302,6 +326,15 @@ impl TajweedProcessor {
 
         if has_ra {
             rules::ra::detect_ra_rules_indexed(&chars, &index, &mut matches, self.style);
+        }
+
+        if has_silent {
+            rules::silent::detect_silent_letters_indexed(
+                &chars,
+                &index,
+                &mut matches,
+                self.style,
+            );
         }
 
         // Tafkhim Lafz Al-Jalalah also requires Lam as a trigger.
@@ -525,7 +558,7 @@ mod tests {
     #[test]
     fn test_explicit_dagger_alif() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
-        let verse = "كٰن"; // Kaf + Dagger Alif + Noon
+        let verse = "كٰنَ ٱلنَّاسُ"; // Kaf + Dagger Alif + Noon
         assert!(has_rule(
             &p.process_verse(verse),
             TajweedRuleType::MaddTabeei
@@ -1392,8 +1425,8 @@ mod tests {
     #[test]
     fn test_dagger_alif_index() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
-        // "كٰن" – Dagger Alif at index 1
-        let m = p.process_verse("كٰن");
+        // "كٰنَ" – Dagger Alif at index 1
+        let m = p.process_verse("كٰنَ ٱلنَّاسُ");
         let da = m
             .iter()
             .find(|r| r.rule.rule_type == TajweedRuleType::MaddTabeei)
