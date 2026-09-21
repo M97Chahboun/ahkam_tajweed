@@ -22,8 +22,7 @@ pub fn is_tajweed_ignorable(c: char) -> bool {
 }
 
 /// Arabic letters used for rule detection (basic letters + common variants).
-pub const ARABIC_LETTERS: &str =
-    "ءأإآؤئٱابةتثجحخدذرزسشصضطظعغفقكلمنهويىةي\u{06CC}\u{06A9}";
+pub const ARABIC_LETTERS: &str = "ءأإآؤئٱابةتثجحخدذرزسشصضطظعغفقكلمنهويىةي\u{06CC}\u{06A9}";
 
 /// Check if character is an Arabic letter relevant for Tajweed rules
 pub fn is_arabic_letter(c: char) -> bool {
@@ -53,7 +52,13 @@ fn diacritic_bit(c: char) -> u8 {
         '\u{0650}' => DIAC_KASRA,
         '\u{0652}' | '\u{06E1}' => DIAC_SUKUN,
         '\u{0651}' => DIAC_SHADDA,
-        '\u{064B}' | '\u{064C}' | '\u{064D}' | '\u{0657}' | '\u{0658}' | '\u{065E}' | '\u{08F0}'..='\u{08F2}' => DIAC_TANWIN,
+        '\u{064B}'
+        | '\u{064C}'
+        | '\u{064D}'
+        | '\u{0657}'
+        | '\u{0658}'
+        | '\u{065E}'
+        | '\u{08F0}'..='\u{08F2}' => DIAC_TANWIN,
         _ => 0,
     }
 }
@@ -260,7 +265,11 @@ pub fn is_sukun(c: char) -> bool {
 
 /// Check if character is Tanwin (تنوين) - includes Fathatan, Dammatan, Kasratan
 pub fn is_tanwin(c: char) -> bool {
-    matches!(c, '\u{064B}' | '\u{064C}' | '\u{064D}' | '\u{0657}' | '\u{0658}' | '\u{065E}' | '\u{08F0}'..='\u{08F2}')
+    matches!(
+        c,
+        '\u{064B}' | '\u{064C}' | '\u{064D}' | '\u{0657}' | '\u{0658}' | '\u{065E}' | '\u{08F0}'
+            ..='\u{08F2}'
+    )
 }
 
 /// Check if character is Shadda (شدة) - U+0651
@@ -374,12 +383,7 @@ pub fn is_word_boundary(c: char) -> bool {
 /// Check if there is a word boundary between two indices (exclusive)
 pub fn has_word_boundary_between(verse_chars: &[char], start: usize, end: usize) -> bool {
     let end = end.min(verse_chars.len());
-    for i in start..end {
-        if is_word_boundary(verse_chars[i]) {
-            return true;
-        }
-    }
-    false
+    verse_chars[start..end].iter().any(|&c| is_word_boundary(c))
 }
 
 /// Find the next Arabic letter at or after `start_idx`.

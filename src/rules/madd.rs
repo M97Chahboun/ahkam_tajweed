@@ -56,8 +56,7 @@ pub(crate) fn detect_madd_rules_indexed(
             // the vowel on the letter before it. A Waw or Ya that carries a
             // Fatha/Damma/Kasra/Tanwin or a Shadda is a consonant
             // (وُسْعَهَا، إِيَّاكَ), never a Madd letter.
-            const OWN_VOWEL: u8 =
-                DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA | DIAC_TANWIN | DIAC_SHADDA;
+            const OWN_VOWEL: u8 = DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA | DIAC_TANWIN | DIAC_SHADDA;
             if index.diacritic_mask_at(i) & OWN_VOWEL != 0 && current_char != 'آ' {
                 i += 1;
                 continue;
@@ -79,13 +78,15 @@ pub(crate) fn detect_madd_rules_indexed(
                 }
             };
 
-            let has_lin_candidate = matches!(current_char, 'و' | 'ي' | '\u{06CC}') && vowel == Some('\u{064E}');
+            let has_lin_candidate =
+                matches!(current_char, 'و' | 'ي' | '\u{06CC}') && vowel == Some('\u{064E}');
 
             if has_basic_madd || has_lin_candidate || current_char == 'آ' {
                 if let Some(madd_type) = detect_madd(current_char, verse_chars, index, i) {
                     // Calculate end index to include diacritics
                     let mut end_idx = i + 1;
-                    while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
+                    while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx])
+                    {
                         end_idx += 1;
                     }
 
@@ -115,11 +116,7 @@ pub(crate) fn detect_madd_rules_indexed(
 /// introduce — `يَٰٓأَيُّهَا`, `يَٰٓأَهْلَ`, `هَٰٓأَنتُمْ` — but they are separate words,
 /// so the Hamza that follows opens a new word and the Madd is Munfasil, not
 /// Muttasil. Both are written as a bare ي / ه with a superscript Alef.
-pub(crate) fn is_detached_particle(
-    verse_chars: &[char],
-    index: &VerseIndex,
-    idx: usize,
-) -> bool {
+pub(crate) fn is_detached_particle(verse_chars: &[char], index: &VerseIndex, idx: usize) -> bool {
     if verse_chars.get(idx) != Some(&'\u{0670}') {
         return false;
     }
@@ -219,8 +216,6 @@ fn detect_madd(
         }
     }
 
-
-
     // 3. Madd Arid li-Sukun — the Madd letter is followed, in the same word,
     //    by the letter the reciter stops on. The Sukun is *temporary*: it only
     //    exists because the recitation halts there, so the letter has to be
@@ -240,9 +235,10 @@ fn detect_madd(
     //    Sukun is what sets the length.
     if let Some(prev_idx) = index.prev_letter_before(current_index) {
         if is_hamza(verse_chars[prev_idx])
-            && !index.has_boundary_between(prev_idx + 1, current_index) {
-                return Some(TajweedRuleType::MaddBadal);
-            }
+            && !index.has_boundary_between(prev_idx + 1, current_index)
+        {
+            return Some(TajweedRuleType::MaddBadal);
+        }
     }
 
     // 5. Check if Madd letter is dropped in continuous reading (Wasl) before a Saakin letter / Hamzat Wasl
@@ -268,7 +264,11 @@ fn is_madd_dropped_before_sakin(
             if verse_chars[next_idx] == 'ا' || verse_chars[next_idx] == 'ى' {
                 if let Some(after_alif_idx) = index.next_letter_after(next_idx) {
                     if index.has_boundary_between(next_idx + 1, after_alif_idx) {
-                        return is_word_starting_with_wasl_or_sakin(verse_chars, index, after_alif_idx);
+                        return is_word_starting_with_wasl_or_sakin(
+                            verse_chars,
+                            index,
+                            after_alif_idx,
+                        );
                     }
                 }
             }
@@ -293,17 +293,18 @@ fn is_word_starting_with_wasl_or_sakin(
     }
     // 2. Regular Alif without vowels followed by Lam or Saakin/Shadda letter (e.g. الجحيم, ابنوا, اتقوا)
     if first_ch == 'ا'
-        && !index.has_diacritic_after_mask(first_letter_idx, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA) {
-            if let Some(second_idx) = index.next_letter_after(first_letter_idx) {
-                if !index.has_boundary_between(first_letter_idx + 1, second_idx)
-                    && (verse_chars[second_idx] == 'ل'
-                        || index.has_sukun_after(second_idx)
-                        || index.has_shadda_after(second_idx))
-                    {
-                        return true;
-                    }
+        && !index.has_diacritic_after_mask(first_letter_idx, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA)
+    {
+        if let Some(second_idx) = index.next_letter_after(first_letter_idx) {
+            if !index.has_boundary_between(first_letter_idx + 1, second_idx)
+                && (verse_chars[second_idx] == 'ل'
+                    || index.has_sukun_after(second_idx)
+                    || index.has_shadda_after(second_idx))
+            {
+                return true;
             }
         }
+    }
     // 3. Direct Saakin letter at word start
     if index.has_sukun_after(first_letter_idx) {
         return true;
@@ -385,33 +386,55 @@ pub(crate) fn detect_silah_rules_indexed(
                                 i += 1;
                                 continue;
                             }
-                            let has_prev_vowel = index.has_diacritic_after_mask(prev_letter_idx, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA);
-                            let has_ha_vowel = index.has_diacritic_after_mask(i, DIAC_DAMMA | DIAC_KASRA);
-                            let has_next_vowel = index.has_diacritic_after_mask(next_letter_idx, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA | DIAC_TANWIN);
+                            let has_prev_vowel = index.has_diacritic_after_mask(
+                                prev_letter_idx,
+                                DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA,
+                            );
+                            let has_ha_vowel =
+                                index.has_diacritic_after_mask(i, DIAC_DAMMA | DIAC_KASRA);
+                            let has_next_vowel = index.has_diacritic_after_mask(
+                                next_letter_idx,
+                                DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA | DIAC_TANWIN,
+                            );
                             let is_next_wasl = verse_chars[next_letter_idx] == '\u{0671}'
-                                || (verse_chars[next_letter_idx] == 'ا' && !index.has_diacritic_after_mask(next_letter_idx, DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA));
+                                || (verse_chars[next_letter_idx] == 'ا'
+                                    && !index.has_diacritic_after_mask(
+                                        next_letter_idx,
+                                        DIAC_FATHA | DIAC_DAMMA | DIAC_KASRA,
+                                    ));
 
-                            if has_prev_vowel && has_ha_vowel && has_next_vowel && !is_next_wasl
-                                && !matches.iter().any(|m| (m.rule.rule_type == TajweedRuleType::MaddSilah || m.rule.rule_type == TajweedRuleType::MaddMunfasil) && m.start_index >= i && m.start_index <= i + 2) {
-                                    let is_kubra = is_hamza(verse_chars[next_letter_idx]);
-                                    let rule_type = if is_kubra {
-                                        TajweedRuleType::MaddMunfasil
-                                    } else {
-                                        TajweedRuleType::MaddSilah
-                                    };
-                                    let mut end_idx = i + 1;
-                                    while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {
-                                        end_idx += 1;
-                                    }
-                                    matches.push(RuleMatch {
-                                        start_index: i,
-                                        end_index: end_idx,
-                                        target_letter: 'ه',
-                                        following_letter: Some(verse_chars[next_letter_idx]),
-                                        rule: TajweedRule::from_type(rule_type, style),
-                                        context: get_context(verse_chars, i, 3),
-                                    });
+                            if has_prev_vowel
+                                && has_ha_vowel
+                                && has_next_vowel
+                                && !is_next_wasl
+                                && !matches.iter().any(|m| {
+                                    (m.rule.rule_type == TajweedRuleType::MaddSilah
+                                        || m.rule.rule_type == TajweedRuleType::MaddMunfasil)
+                                        && m.start_index >= i
+                                        && m.start_index <= i + 2
+                                })
+                            {
+                                let is_kubra = is_hamza(verse_chars[next_letter_idx]);
+                                let rule_type = if is_kubra {
+                                    TajweedRuleType::MaddMunfasil
+                                } else {
+                                    TajweedRuleType::MaddSilah
+                                };
+                                let mut end_idx = i + 1;
+                                while end_idx < verse_chars.len()
+                                    && is_tajweed_ignorable(verse_chars[end_idx])
+                                {
+                                    end_idx += 1;
                                 }
+                                matches.push(RuleMatch {
+                                    start_index: i,
+                                    end_index: end_idx,
+                                    target_letter: 'ه',
+                                    following_letter: Some(verse_chars[next_letter_idx]),
+                                    rule: TajweedRule::from_type(rule_type, style),
+                                    context: get_context(verse_chars, i, 3),
+                                });
+                            }
                         }
                     }
                 }

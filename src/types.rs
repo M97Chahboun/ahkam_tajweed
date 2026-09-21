@@ -581,7 +581,7 @@ impl TajweedRule {
             .map(|(_, m)| m)
             .unwrap_or_else(|| {
                 // Safety valve: should never happen if the table is complete.
-                &RULE_TABLE[RULE_TABLE.len() - 1].1  // NoRule entry
+                &RULE_TABLE[RULE_TABLE.len() - 1].1 // NoRule entry
             });
 
         let description_ar = if style == RecitationStyle::Warsh {

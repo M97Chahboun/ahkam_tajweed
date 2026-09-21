@@ -22,6 +22,7 @@
 //! detection has to recognise both that spelling and the ordinary one.
 
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod reported_issues_tests {
     use crate::types::{RecitationStyle, RuleMatch, TajweedRule, TajweedRuleType};
     use crate::TajweedProcessor;
@@ -37,7 +38,10 @@ mod reported_issues_tests {
     }
 
     fn of_type(matches: &[RuleMatch], rule: TajweedRuleType) -> Vec<&RuleMatch> {
-        matches.iter().filter(|m| m.rule.rule_type == rule).collect()
+        matches
+            .iter()
+            .filter(|m| m.rule.rule_type == rule)
+            .collect()
     }
 
     fn has_rule(matches: &[RuleMatch], rule: TajweedRuleType) -> bool {
@@ -114,10 +118,7 @@ mod reported_issues_tests {
     fn issue4_every_munfasil_in_al_isra_1_reports_six_harakaat() {
         let matches = analyze(AL_ISRA_1, RecitationStyle::Warsh);
         let munfasil = of_type(&matches, TajweedRuleType::MaddMunfasil);
-        assert!(
-            !munfasil.is_empty(),
-            "17:1 contains Munfasil (اَ۬لذِےٓ أَسْر۪ىٰ)"
-        );
+        assert!(!munfasil.is_empty(), "17:1 contains Munfasil (اَ۬لذِےٓ أَسْر۪ىٰ)");
         for m in munfasil {
             assert_eq!(
                 m.rule.madd_length_warsh,
@@ -304,8 +305,8 @@ mod reported_issues_tests {
     fn issue6_kasra_ra_in_linuriyahu_is_not_warsh_specific() {
         for style in [RecitationStyle::Warsh, RecitationStyle::Hafs] {
             let matches = analyze("لِنُرِيَهُۥ", style);
-            let m = match_at(&matches, TajweedRuleType::TarqeeqRa, "ر")
-                .expect("راء مكسورة → ترقيق");
+            let m =
+                match_at(&matches, TajweedRuleType::TarqeeqRa, "ر").expect("راء مكسورة → ترقيق");
             assert!(
                 !m.rule.warsh_specific,
                 "a Ra carrying a kasra is thinned by every reader, not only Warsh"
@@ -316,8 +317,8 @@ mod reported_issues_tests {
     #[test]
     fn issue6_kasra_ra_inside_al_isra_1_is_not_warsh_specific() {
         let matches = analyze(AL_ISRA_1, RecitationStyle::Warsh);
-        let m = match_at(&matches, TajweedRuleType::TarqeeqRa, "نُرِيَ")
-            .expect("ترقيق الراء في لِنُرِيَهُۥ");
+        let m =
+            match_at(&matches, TajweedRuleType::TarqeeqRa, "نُرِيَ").expect("ترقيق الراء في لِنُرِيَهُۥ");
         assert!(
             !m.rule.warsh_specific,
             "reported in issue #6: لِنُرِيَهُۥ is agreed upon, not a Warsh feature"
@@ -341,8 +342,7 @@ mod reported_issues_tests {
     fn issue6_damma_ra_after_sakin_ya_is_warsh_specific() {
         // اُ۬لْبَصِيرُ — Ra with damma after a sakin Ya: Warsh thins it, Hafs does not.
         let warsh = analyze(AL_ISRA_1, RecitationStyle::Warsh);
-        let m = match_at(&warsh, TajweedRuleType::TarqeeqRa, "صِيرُ")
-            .expect("ورش يرقق راء البَصِيرُ");
+        let m = match_at(&warsh, TajweedRuleType::TarqeeqRa, "صِيرُ").expect("ورش يرقق راء البَصِيرُ");
         assert!(
             m.rule.warsh_specific,
             "Ra with damma after a sakin Ya is Warsh's own tarqeeq"
@@ -415,7 +415,10 @@ mod reported_issues_tests {
         let warsh = analyze(AL_HUJURAT_7, RecitationStyle::Warsh);
         let naql = match_at(&warsh, TajweedRuleType::Naql, "لِا")
             .expect("النقل في (اُ۬لِايمَٰنَ) must be reported");
-        assert_eq!(naql.target_letter, 'ل', "the Lam receives the transferred vowel");
+        assert_eq!(
+            naql.target_letter, 'ل',
+            "the Lam receives the transferred vowel"
+        );
     }
 
     #[test]

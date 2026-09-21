@@ -14,24 +14,23 @@ pub const RIGHT_NON_CONNECTORS: [char; 42] = [
     'ا', 'أ', 'إ', 'آ', 'ٱ', // Dal family - connects from right, not to left
     'د', 'ذ', // Ra family - connects from right, not to left
     'ر', 'ز', // Waw family - connects from right, not to left
-    'و', 'ؤ', // Other non-connectors
-    'ة', // Ta marbuta
+    'و', 'ؤ',        // Other non-connectors
+    'ة',        // Ta marbuta
     '\u{0621}', // Hamza (Independent)
     '\u{0649}', // Alef Maqsura
     // Spaces and marks
     ' ', '\u{00A0}', '\u{200B}', '\u{200C}', '\u{200D}', // Quranic marks
     'ۙ', 'ۚ', 'ۖ', 'ۗ', 'ۘ', 'ۜ', 'ۢ', '۟', '۠', // Small letters
-    '\u{06DB}', '\u{06DD}', '\u{06DE}', '\u{06E9}', '\u{06E4}', '\u{06E3}', '\u{06EA}', '\u{06EB}', '\u{06EC}', '\u{06ED}',
-    'ۥ', 'ۦ', 'ۧ', 'ۨ',
+    '\u{06DB}', '\u{06DD}', '\u{06DE}', '\u{06E9}', '\u{06E4}', '\u{06E3}', '\u{06EA}', '\u{06EB}',
+    '\u{06EC}', '\u{06ED}', 'ۥ', 'ۦ', 'ۧ', 'ۨ',
 ];
 
 /// Letters that do NOT connect FROM the right (can't receive connections)
 pub const NO_RIGHT_CONNECTION: [char; 29] = [
-    ' ', '\u{00A0}', '\u{200B}', '\u{200C}', '\u{200D}', 
+    ' ', '\u{00A0}', '\u{200B}', '\u{200C}', '\u{200D}',
     '\u{0621}', // Hamza acts as a separator
-    'ۙ', 'ۚ', 'ۖ', 'ۗ', 'ۘ', 'ۜ', 'ۢ', '۟', '۠', 'ۥ',
-    '\u{06DB}', '\u{06DD}', '\u{06DE}', '\u{06E9}', '\u{06E4}', '\u{06E3}', '\u{06EA}', '\u{06EB}', '\u{06EC}', '\u{06ED}',
-    'ۦ', 'ۧ', 'ۨ',
+    'ۙ', 'ۚ', 'ۖ', 'ۗ', 'ۘ', 'ۜ', 'ۢ', '۟', '۠', 'ۥ', '\u{06DB}', '\u{06DD}', '\u{06DE}', '\u{06E9}',
+    '\u{06E4}', '\u{06E3}', '\u{06EA}', '\u{06EB}', '\u{06EC}', '\u{06ED}', 'ۦ', 'ۧ', 'ۨ',
 ];
 
 /// Check if a character is a space
@@ -185,43 +184,43 @@ pub fn apply_zwj_to_text(text: &str) -> String {
     // To avoid cloning Strings excessively, we maintain:
     // - pending_cluster: the one we are about to emit (waiting for next to decide trailing)
     // - next_cluster: the one we are building
-    
-    // Actually, to use existing helpers `needs_leading_zwj` which takes `Option<&str>`, 
+
+    // Actually, to use existing helpers `needs_leading_zwj` which takes `Option<&str>`,
     // we would need to keep full strings.
     // Let's implement an optimized loop that builds `next_cluster` char by char.
-    
+
     let mut prev_cluster: Option<String> = None;
     let mut curr_cluster = String::new();
     let mut next_cluster = String::new();
-    
+
     // We need to prime the loop.
     // Iterator over chars
     let mut chars = text.chars().peekable();
-    
+
     // Read first cluster into curr_cluster
     while let Some(&c) = chars.peek() {
-         let is_arabic = is_arabic_letter(c);
-         let is_dia = is_diacritic(c);
-         
-         if curr_cluster.is_empty() {
-             curr_cluster.push(c);
-             chars.next();
-         } else if is_arabic {
-             // New cluster starts
-             break;
-         } else if is_dia {
-             // Append to current
-             curr_cluster.push(c);
-             chars.next();
-         } else {
-             // Other char
-             // If curr_cluster has arabic/dia content, this starts new.
-             // If curr_cluster is just other chars? existing logic groups "others" as single cluster?
-             // split_into_grapheme_clusters says "Treat them as their own cluster... if !current.is_empty push... push(c)"
-             break;
-         }
+        let is_arabic = is_arabic_letter(c);
+        let is_dia = is_diacritic(c);
+
+        if curr_cluster.is_empty() {
+            curr_cluster.push(c);
+            chars.next();
+        } else if is_arabic {
+            // New cluster starts
+            break;
+        } else if is_dia {
+            // Append to current
+            curr_cluster.push(c);
+            chars.next();
+        } else {
+            // Other char
+            // If curr_cluster has arabic/dia content, this starts new.
+            // If curr_cluster is just other chars? existing logic groups "others" as single cluster?
+            // split_into_grapheme_clusters says "Treat them as their own cluster... if !current.is_empty push... push(c)"
+            break;
+        }
     }
-    
+
     // If text was empty or exhausted
     if curr_cluster.is_empty() {
         return result;
@@ -230,41 +229,49 @@ pub fn apply_zwj_to_text(text: &str) -> String {
     loop {
         // Build next_cluster
         next_cluster.clear();
-        
+
         // We need to peek to decide where next_cluster ends
         while let Some(&c) = chars.peek() {
-             let is_arabic = is_arabic_letter(c);
-             let is_dia = is_diacritic(c);
-             
-             if next_cluster.is_empty() {
-                 next_cluster.push(c);
-                 chars.next();
-             } else if is_arabic {
-                 // New cluster starts
-                 break;
-             } else if is_dia {
-                 next_cluster.push(c);
-                 chars.next();
-             } else {
-                 // Other char starts new cluster
-                 break;
-             }
+            let is_arabic = is_arabic_letter(c);
+            let is_dia = is_diacritic(c);
+
+            if next_cluster.is_empty() {
+                next_cluster.push(c);
+                chars.next();
+            } else if is_arabic {
+                // New cluster starts
+                break;
+            } else if is_dia {
+                next_cluster.push(c);
+                chars.next();
+            } else {
+                // Other char starts new cluster
+                break;
+            }
         }
-        
-        let next_opt = if next_cluster.is_empty() { None } else { Some(next_cluster.as_str()) };
+
+        let next_opt = if next_cluster.is_empty() {
+            None
+        } else {
+            Some(next_cluster.as_str())
+        };
         let prev_opt = prev_cluster.as_deref();
-        
+
         let leading = needs_leading_zwj(&curr_cluster, prev_opt);
         let trailing = needs_trailing_zwj(&curr_cluster, next_opt);
-        
-        if leading { result.push(ZWJ); }
+
+        if leading {
+            result.push(ZWJ);
+        }
         result.push_str(&curr_cluster);
-        if trailing { result.push(ZWJ); }
-        
+        if trailing {
+            result.push(ZWJ);
+        }
+
         if next_cluster.is_empty() {
             break;
         }
-        
+
         // Rotate
         if let Some(ref mut p) = prev_cluster {
             p.clear();
@@ -272,7 +279,7 @@ pub fn apply_zwj_to_text(text: &str) -> String {
         } else {
             prev_cluster = Some(curr_cluster.clone());
         }
-        
+
         curr_cluster.clear();
         curr_cluster.push_str(&next_cluster);
     }

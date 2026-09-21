@@ -9,6 +9,7 @@
 //! U+0671, the silent Alif U+06DF, unmarked Meem Sakinah) is preserved.
 
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod corpus_diff_tests {
     use crate::types::{RecitationStyle, RuleMatch, TajweedRuleType};
     use crate::TajweedProcessor;
@@ -56,8 +57,8 @@ mod corpus_diff_tests {
     fn a_hamzat_wasl_opening_the_verse_is_pronounced() {
         let m = analyze("ٱقْرَأْ بِٱسْمِ");
         assert!(
-            m.iter().all(|r| r.start_index != 0
-                || r.rule.rule_type != TajweedRuleType::HamzatWasl),
+            m.iter()
+                .all(|r| r.start_index != 0 || r.rule.rule_type != TajweedRuleType::HamzatWasl),
             "nothing precedes the first letter, so nothing connects to it"
         );
     }

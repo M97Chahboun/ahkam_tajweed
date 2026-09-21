@@ -23,15 +23,13 @@ pub enum TarqeeqScope {
     WarshSpecific,
 }
 
-/// Detect Tafkhim Ra (تفخيم الراء)
+/// Detect Tafkhim Ra (تفخيم الراء).
+///
 /// Ra is emphasized (heavy) when:
+///
 /// 1. It has a fatha or damma
 /// 2. It has a sukoon and the letter before has fatha or damma
-/// Detect Tafkhim Ra (تفخيم الراء)
-pub fn detect_tafkhim_ra(
-    verse_chars: &[char],
-    current_index: usize,
-) -> Option<TajweedRuleType> {
+pub fn detect_tafkhim_ra(verse_chars: &[char], current_index: usize) -> Option<TajweedRuleType> {
     let index = VerseIndex::new(verse_chars);
     detect_tafkhim_ra_indexed(verse_chars, &index, current_index)
 }
@@ -67,10 +65,7 @@ fn detect_tafkhim_ra_indexed(
 /// 1. It has a kasra — agreed upon by all readers
 /// 2. It has a sukoon and the letter before has kasra / is a Saakin Ya — agreed upon
 /// 3. In Warsh only: when it has fatha/damma and preceded by Kasra / Saakin Ya, unless an exception applies.
-pub fn detect_tarqeeq_ra(
-    verse_chars: &[char],
-    current_index: usize,
-) -> Option<TajweedRuleType> {
+pub fn detect_tarqeeq_ra(verse_chars: &[char], current_index: usize) -> Option<TajweedRuleType> {
     let index = VerseIndex::new(verse_chars);
     detect_tarqeeq_ra_indexed(verse_chars, &index, current_index)
 }
@@ -113,7 +108,10 @@ fn detect_tarqeeq_ra_styled(
                     let next_ch = verse_chars[next_idx];
                     if matches!(next_ch, 'ص' | 'ض' | 'ط' | 'ظ' | 'ق' | 'غ' | 'خ')
                         && !index.has_boundary_between(current_index + 1, next_idx)
-                        && index.has_diacritic_after_mask(next_idx, DIAC_FATHA | DIAC_DAMMA | DIAC_TANWIN)
+                        && index.has_diacritic_after_mask(
+                            next_idx,
+                            DIAC_FATHA | DIAC_DAMMA | DIAC_TANWIN,
+                        )
                     {
                         return None; // Must be Tafkhim
                     }
@@ -131,39 +129,43 @@ fn detect_tarqeeq_ra_styled(
 
     // 3. Warsh-specific rules for Ra with Fatha or Damma (رَ / رُ / رًا / رٌ)
     if style == RecitationStyle::Warsh
-        && index.has_diacritic_after_mask(current_index, DIAC_FATHA | DIAC_DAMMA | DIAC_TANWIN) {
-            // Check for mandatory Tafkhim exceptions in Warsh
-            if is_warsh_ra_tafkhim_exception(verse_chars, index, current_index) {
-                return None; // Exception -> Tafkhim
-            }
+        && index.has_diacritic_after_mask(current_index, DIAC_FATHA | DIAC_DAMMA | DIAC_TANWIN)
+    {
+        // Check for mandatory Tafkhim exceptions in Warsh
+        if is_warsh_ra_tafkhim_exception(verse_chars, index, current_index) {
+            return None; // Exception -> Tafkhim
+        }
 
-            if let Some(prev_idx) = index.prev_letter_before(current_index) {
-                if !index.has_boundary_between(prev_idx + 1, current_index) {
-                    // Case A: Preceded by Saakin Ya (e.g. خَيْرًا, طَيْرًا, نَذِيرٌ, خَبِيرًا, بَصِيرٌ, غَيْرَ)
-                    if (verse_chars[prev_idx] == 'ي' || verse_chars[prev_idx] == '\u{06CC}')
-                        && (index.has_sukun_after(prev_idx) || index.diacritic_mask_at(prev_idx) == 0) {
+        if let Some(prev_idx) = index.prev_letter_before(current_index) {
+            if !index.has_boundary_between(prev_idx + 1, current_index) {
+                // Case A: Preceded by Saakin Ya (e.g. خَيْرًا, طَيْرًا, نَذِيرٌ, خَبِيرًا, بَصِيرٌ, غَيْرَ)
+                if (verse_chars[prev_idx] == 'ي' || verse_chars[prev_idx] == '\u{06CC}')
+                    && (index.has_sukun_after(prev_idx) || index.diacritic_mask_at(prev_idx) == 0)
+                {
+                    return Some((TajweedRuleType::TarqeeqRa, TarqeeqScope::WarshSpecific));
+                }
+
+                // Case B: Preceded by direct original Kasra (e.g. نَاصِرًا, قَادِرُونَ, سِرَاجًا)
+                if index.has_diacritic_after_mask(prev_idx, DIAC_KASRA) {
+                    return Some((TajweedRuleType::TarqeeqRa, TarqeeqScope::WarshSpecific));
+                }
+
+                // Case C: Preceded by Kasra separated by a single non-Isti'la Saakin letter (e.g. عِبْرَةً, سِحْرٌ, مِحْرَاب, ذِكْرَا, إِكْرَاه)
+                let prev_ch = verse_chars[prev_idx];
+                let is_sakin_prev =
+                    index.has_sukun_after(prev_idx) || index.diacritic_mask_at(prev_idx) == 0;
+                if is_sakin_prev && !matches!(prev_ch, 'ص' | 'ط' | 'ق' | 'ض' | 'ظ' | 'غ') {
+                    if let Some(prev_prev_idx) = index.prev_letter_before(prev_idx) {
+                        if !index.has_boundary_between(prev_prev_idx + 1, current_index)
+                            && index.has_diacritic_after_mask(prev_prev_idx, DIAC_KASRA)
+                        {
                             return Some((TajweedRuleType::TarqeeqRa, TarqeeqScope::WarshSpecific));
-                        }
-
-                    // Case B: Preceded by direct original Kasra (e.g. نَاصِرًا, قَادِرُونَ, سِرَاجًا)
-                    if index.has_diacritic_after_mask(prev_idx, DIAC_KASRA) {
-                        return Some((TajweedRuleType::TarqeeqRa, TarqeeqScope::WarshSpecific));
-                    }
-
-                    // Case C: Preceded by Kasra separated by a single non-Isti'la Saakin letter (e.g. عِبْرَةً, سِحْرٌ, مِحْرَاب, ذِكْرَا, إِكْرَاه)
-                    let prev_ch = verse_chars[prev_idx];
-                    let is_sakin_prev = index.has_sukun_after(prev_idx) || index.diacritic_mask_at(prev_idx) == 0;
-                    if is_sakin_prev && !matches!(prev_ch, 'ص' | 'ط' | 'ق' | 'ض' | 'ظ' | 'غ') {
-                        if let Some(prev_prev_idx) = index.prev_letter_before(prev_idx) {
-                            if !index.has_boundary_between(prev_prev_idx + 1, current_index)
-                                && index.has_diacritic_after_mask(prev_prev_idx, DIAC_KASRA) {
-                                    return Some((TajweedRuleType::TarqeeqRa, TarqeeqScope::WarshSpecific));
-                                }
                         }
                     }
                 }
             }
         }
+    }
 
     None
 }
@@ -200,17 +202,21 @@ fn is_warsh_ra_tafkhim_exception(
 
     // 3. Check for repeated Ra in the same word (ضِرَارًا, فِرَارًا, مِرَارًا, إِسْرَارًا, مِدْرَارًا)
     if let Some(next_idx) = index.next_letter_after(current_index) {
-        if !index.has_boundary_between(current_index + 1, next_idx) && verse_chars[next_idx] == 'ر' {
+        if !index.has_boundary_between(current_index + 1, next_idx) && verse_chars[next_idx] == 'ر'
+        {
             return true;
         }
         if let Some(after_next_idx) = index.next_letter_after(next_idx) {
-            if !index.has_boundary_between(current_index + 1, after_next_idx) && verse_chars[after_next_idx] == 'ر' {
+            if !index.has_boundary_between(current_index + 1, after_next_idx)
+                && verse_chars[after_next_idx] == 'ر'
+            {
                 return true;
             }
         }
     }
     if let Some(prev_idx) = index.prev_letter_before(current_index) {
-        if !index.has_boundary_between(prev_idx + 1, current_index) && verse_chars[prev_idx] == 'ر' {
+        if !index.has_boundary_between(prev_idx + 1, current_index) && verse_chars[prev_idx] == 'ر'
+        {
             return true;
         }
     }
@@ -218,9 +224,15 @@ fn is_warsh_ra_tafkhim_exception(
     // 4. Check for foreign names (إبراهيم, إسرائيل, عمران, إرم)
     let word = get_current_word(verse_chars, index, current_index);
     let foreign_stems = [
-        "إبرهم", "إبرهيم", "إبراهيم",
-        "إسرءيل", "إسراءيل", "إسرائيل", "إسرافيل",
-        "عمرن", "عمران",
+        "إبرهم",
+        "إبرهيم",
+        "إبراهيم",
+        "إسرءيل",
+        "إسراءيل",
+        "إسرائيل",
+        "إسرافيل",
+        "عمرن",
+        "عمران",
         "إرم",
     ];
     for stem in foreign_stems {
@@ -248,9 +260,11 @@ fn get_current_word(verse_chars: &[char], index: &VerseIndex, idx: usize) -> Str
         end = next;
     }
     let word_slice = &verse_chars[start..=end.min(verse_chars.len() - 1)];
-    word_slice.iter().filter(|&&c| is_arabic_letter(c)).collect()
+    word_slice
+        .iter()
+        .filter(|&&c| is_arabic_letter(c))
+        .collect()
 }
-
 
 /// Detect Tafkhim Lafz Al-Jalala (تفخيم لفظ الجلالة)
 /// Allah's name is emphasized when preceded by fatha or damma
@@ -333,8 +347,8 @@ fn detect_tafkhim_lafuljalala_indexed(
         // No explicit second lam - verify shadda was present on first lam
         let mut found_shadda = false;
         let first_lam_pos = current_index + 1;
-        for i in (first_lam_pos + 1)..check_idx {
-            if verse_chars[i] == '\u{0651}' {
+        for ch in verse_chars.iter().take(check_idx).skip(first_lam_pos + 1) {
+            if *ch == '\u{0651}' {
                 found_shadda = true;
                 break;
             }
@@ -379,7 +393,6 @@ fn detect_tafkhim_lafuljalala_indexed(
     Some((check_idx, is_tafkhim))
 }
 
-
 /// Detect Ra emphasis and Allah name rules in verse
 pub fn detect_ra_rules(verse_chars: &[char], matches: &mut Vec<RuleMatch>, style: RecitationStyle) {
     let index = VerseIndex::new(verse_chars);
@@ -398,7 +411,9 @@ pub(crate) fn detect_ra_rules_indexed(
             let mut found_rule = false;
 
             // Check for Tarqeeq Ra (applicable in both styles, with full Warsh rules and exceptions)
-            if let Some((tarqeeq_type, scope)) = detect_tarqeeq_ra_styled(verse_chars, index, i, style) {
+            if let Some((tarqeeq_type, scope)) =
+                detect_tarqeeq_ra_styled(verse_chars, index, i, style)
+            {
                 // Calculate end index including diacritics
                 let mut end_idx = i + 1;
                 while end_idx < verse_chars.len() && is_tajweed_ignorable(verse_chars[end_idx]) {

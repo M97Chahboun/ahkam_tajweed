@@ -1,8 +1,9 @@
 //! Comprehensive tests for all Tajweed rules
 
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod comprehensive_tests {
-    use crate::{TajweedProcessor, RecitationStyle, TajweedRuleType};
+    use crate::{RecitationStyle, TajweedProcessor, TajweedRuleType};
 
     // Helper function to check if a rule exists
     fn has_rule(matches: &[crate::RuleMatch], rule_type: TajweedRuleType) -> bool {
@@ -11,29 +12,32 @@ mod comprehensive_tests {
 
     // Helper function to count rules
     fn count_rules(matches: &[crate::RuleMatch], rule_type: TajweedRuleType) -> usize {
-        matches.iter().filter(|m| m.rule.rule_type == rule_type).count()
+        matches
+            .iter()
+            .filter(|m| m.rule.rule_type == rule_type)
+            .count()
     }
 
     #[test]
     fn test_comprehensive_noon_sakinah_rules() {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
-        
+
         // Izhar Halqi - Noon before throat letters
         let matches = processor.process_verse("مِنْ أَنْبِيَاءِ");
         assert!(has_rule(&matches, TajweedRuleType::IzharHalqi));
-        
+
         // Idgham Bi-Ghunnah - Noon before Y, N, M, W
         let matches = processor.process_verse("مِنْ يَقُولُ");
         assert!(has_rule(&matches, TajweedRuleType::IdghamBiGhunnah));
-        
+
         // Idgham Bila-Ghunnah - Noon before L, R
         let matches = processor.process_verse("مِنْ لَدُنْهُ");
         assert!(has_rule(&matches, TajweedRuleType::IdghamBilaGhunnah));
-        
+
         // Iqlab - Noon before B
         let matches = processor.process_verse("مِنْ بَعْدِ");
         assert!(has_rule(&matches, TajweedRuleType::Iqlab));
-        
+
         // Ikhfaa Haqiqi - Noon before 15 letters
         let matches = processor.process_verse("مِنْ كَانَ");
         assert!(has_rule(&matches, TajweedRuleType::IkhfaaHaqiqi));
@@ -63,15 +67,15 @@ mod comprehensive_tests {
     #[test]
     fn test_comprehensive_mim_sakinah_rules() {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
-        
+
         // Ikhfaa Shafawi - Mim before B
         let matches = processor.process_verse("كُمْ بِهِم");
         assert!(has_rule(&matches, TajweedRuleType::IkhfaaShafawi));
-        
+
         // Idgham Shafawi - Mim before Mim
         let matches = processor.process_verse("كُمْ مُحْسِنُون");
         assert!(has_rule(&matches, TajweedRuleType::IdghamMithlayn));
-        
+
         // Izhar Shafawi - Mim before other letters
         let matches = processor.process_verse("كُمْ فَعَلْتُم");
         assert!(has_rule(&matches, TajweedRuleType::IzharShafawi));
@@ -80,11 +84,11 @@ mod comprehensive_tests {
     #[test]
     fn test_comprehensive_lam_al_tarif_rules() {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
-        
+
         // Izhar Qamari - Al- before moon letters
         let matches = processor.process_verse("القَمَرُ");
         assert!(has_rule(&matches, TajweedRuleType::IzharQamari));
-        
+
         // Idgham Shamsi - Al- before sun letters
         let matches = processor.process_verse("الشَّمْسُ");
         assert!(has_rule(&matches, TajweedRuleType::IdghamShamsi));
@@ -93,26 +97,26 @@ mod comprehensive_tests {
     #[test]
     fn test_comprehensive_madd_rules() {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
-        
+
         // Madd Tabeei - natural madd
         let matches = processor.process_verse("كَانَ ٱلنَّاسُ");
         assert!(has_rule(&matches, TajweedRuleType::MaddTabeei));
-        
+
         // Madd Muttasil - connected madd (Alif + Hamza in same word)
         let matches = processor.process_verse("سُوْءٌ"); // Su'ün - Waw with Damma followed by Hamza
         assert!(has_rule(&matches, TajweedRuleType::MaddMuttasil));
-        
+
         // Madd Munfasil - disconnected madd (Alif + Hamza in different words)
         let matches = processor.process_verse("مَا أَنْتَ");
         assert!(has_rule(&matches, TajweedRuleType::MaddMunfasil));
-        
+
         // Madd Lazim - required madd (Madd letter followed by a shadda)
         let matches = processor.process_verse("وَلَا ٱلضَّآلِّينَ"); // Alif then Lam+Shadda
         assert!(has_rule(&matches, TajweedRuleType::MaddLazim));
         // أَمَّا carries the shadda *before* the Alif — natural madd, not Lazim
         let matches = processor.process_verse("أَمَّا");
         assert!(!has_rule(&matches, TajweedRuleType::MaddLazim));
-        
+
         // Madd Lin - soft madd (Waw/Ya with Fatha followed by Sukun)
         let matches = processor.process_verse("لَيْسَ"); // Ya with Fatha followed by Sukun
         assert!(has_rule(&matches, TajweedRuleType::MaddLin));
@@ -121,11 +125,11 @@ mod comprehensive_tests {
     #[test]
     fn test_comprehensive_qalqalah_rules() {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
-        
+
         // Qalqalah Sughra - minor bouncing (within word)
         let matches = processor.process_verse("يَجْعَلُ");
         assert!(has_rule(&matches, TajweedRuleType::QalqalahSughra));
-        
+
         // Qalqalah Kubra - major bouncing (at end)
         let matches = processor.process_verse("قَدْ");
         assert!(has_rule(&matches, TajweedRuleType::QalqalahKubra));
@@ -134,11 +138,11 @@ mod comprehensive_tests {
     #[test]
     fn test_comprehensive_ra_rules() {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
-        
+
         // Tafkhim Ra - heavy Ra (with Fatha or Damma)
         let matches = processor.process_verse("رَحْمَنِ");
         assert!(has_rule(&matches, TajweedRuleType::TafkhimRa));
-        
+
         // Tarqeeq Ra - light Ra (with Kasra) - more common in Warsh
         let warsh_processor = TajweedProcessor::new(RecitationStyle::Warsh);
         let matches = warsh_processor.process_verse("رِيحٌ");
@@ -162,11 +166,11 @@ mod comprehensive_tests {
     #[test]
     fn test_comprehensive_waqf_signs() {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
-        
+
         // Test all waqf signs
-        let verse = format!("أ\u{06D6}ب\u{06D7}ت\u{06DA}ث\u{06DB}ج\u{06D5}ح\u{06D9}");
+        let verse = "أ\u{06D6}ب\u{06D7}ت\u{06DA}ث\u{06DB}ج\u{06D5}ح\u{06D9}".to_string();
         let matches = processor.process_verse(&verse);
-        
+
         assert!(has_rule(&matches, TajweedRuleType::WaslAwla));
         assert!(has_rule(&matches, TajweedRuleType::WaqfAwla));
         assert!(has_rule(&matches, TajweedRuleType::WaqfJaiz));
@@ -178,7 +182,7 @@ mod comprehensive_tests {
     #[test]
     fn test_comprehensive_sakt_rule() {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
-        
+
         // Sakt rule
         let matches = processor.process_verse("أ\u{06DC}ب\u{06DC}ت");
         assert!(count_rules(&matches, TajweedRuleType::Sakt) >= 2);
@@ -188,29 +192,34 @@ mod comprehensive_tests {
     fn test_warsh_specific_rules() {
         let warsh_processor = TajweedProcessor::new(RecitationStyle::Warsh);
         let hafs_processor = TajweedProcessor::new(RecitationStyle::Hafs);
-        
+
         // Idgham Naqis - incomplete assimilation (Warsh specific)
         let warsh_matches = warsh_processor.process_verse("مِنْ يَجْرِي");
-        let hafs_matches = hafs_processor.process_verse("مِنْ يَجْرِي");
-        
+        let _hafs_matches = hafs_processor.process_verse("مِنْ يَجْرِي");
+
         // In Warsh, this might produce IdghamNaqis, but in Hafs it won't
         // Both should produce some form of Idgham though
-        assert!(has_rule(&warsh_matches, TajweedRuleType::IdghamBiGhunnah) || 
-                has_rule(&warsh_matches, TajweedRuleType::IdghamNaqis));
+        assert!(
+            has_rule(&warsh_matches, TajweedRuleType::IdghamBiGhunnah)
+                || has_rule(&warsh_matches, TajweedRuleType::IdghamNaqis)
+        );
     }
 
     #[test]
     fn test_complex_integration() {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
-        
+
         // Complex verse with multiple rules
         let matches = processor.process_verse("بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ");
-        
+
         // Should have multiple rule types
-        let unique_types: std::collections::HashSet<_> = 
+        let unique_types: std::collections::HashSet<_> =
             matches.iter().map(|m| m.rule.rule_type).collect();
-        
-        assert!(unique_types.len() >= 4, "Complex verse should have multiple rule types");
+
+        assert!(
+            unique_types.len() >= 4,
+            "Complex verse should have multiple rule types"
+        );
         // اللَّهِ here is preceded by the Kasra of بِسْمِ — ترقيق, not تفخيم.
         assert!(has_rule(&matches, TajweedRuleType::TarqeeqLafuljalala));
         assert!(has_rule(&matches, TajweedRuleType::TafkhimRa));
@@ -219,13 +228,13 @@ mod comprehensive_tests {
     #[test]
     fn test_edge_cases() {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
-        
+
         // Empty string
         assert!(processor.process_verse("").is_empty());
-        
+
         // Whitespace only
         assert!(processor.process_verse("   \t\n  ").is_empty());
-        
+
         // Single non-trigger character (Seen carries no rule on its own)
         assert!(processor.process_verse("س").is_empty());
 
@@ -239,7 +248,7 @@ mod comprehensive_tests {
     #[test]
     fn test_izhar_mutlaq_case() {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
-        
+
         // "دُنْيَا" - Noon Sakinah in same word followed by 'ي' - Izhar Mutlaq
         let matches = processor.process_verse("دُنْيَا");
         assert!(has_rule(&matches, TajweedRuleType::IzharMutlaq));
@@ -248,14 +257,20 @@ mod comprehensive_tests {
     #[test]
     fn test_madd_lin_cases() {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
-        
+
         // "لَيْسَ" - Ya with Fatha followed by Sukun on Sin
         let matches = processor.process_verse("لَيْسَ");
-        assert!(has_rule(&matches, TajweedRuleType::MaddLin) || has_rule(&matches, TajweedRuleType::MaddTabeei));
-        
+        assert!(
+            has_rule(&matches, TajweedRuleType::MaddLin)
+                || has_rule(&matches, TajweedRuleType::MaddTabeei)
+        );
+
         // "خَوْفٍ" - Fatha on the Kha, then a Sakin Waw
         let matches = processor.process_verse("خَوْفٍ");
-        assert!(has_rule(&matches, TajweedRuleType::MaddLin) || has_rule(&matches, TajweedRuleType::MaddTabeei));
+        assert!(
+            has_rule(&matches, TajweedRuleType::MaddLin)
+                || has_rule(&matches, TajweedRuleType::MaddTabeei)
+        );
 
         // "وَقْفٌ" opens with a voweled Waw — a consonant, so no Madd Lin
         let matches = processor.process_verse("وَقْفٌ");
@@ -269,7 +284,13 @@ mod comprehensive_tests {
         // "رِيحٌ" - Ra with Kasra should trigger Tarqeeq Ra in Warsh
         let matches = processor.process_verse("رِيحٌ");
         // In Hafs, this might still be Tafkhim, but let's check what gets detected
-        println!("Rules for 'رِيحٌ': {:?}", matches.iter().map(|m| m.rule.english_name).collect::<Vec<_>>());
+        println!(
+            "Rules for 'رِيحٌ': {:?}",
+            matches
+                .iter()
+                .map(|m| m.rule.english_name)
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -279,20 +300,26 @@ mod comprehensive_tests {
 
         println!("Debug: Found {} rules for 'كِتَابًا كَبِيرًا':", matches.len());
         for (i, rule_match) in matches.iter().enumerate() {
-            println!("  {}: {} ({}-{}) - '{}' -> '{}' | Context: {}",
-                i+1,
+            println!(
+                "  {}: {} ({}-{}) - '{}' -> '{}' | Context: {}",
+                i + 1,
                 rule_match.rule.english_name,
                 rule_match.start_index,
                 rule_match.end_index,
                 rule_match.target_letter,
-                rule_match.following_letter.map(|c| c.to_string()).unwrap_or("-".to_string()),
+                rule_match
+                    .following_letter
+                    .map(|c| c.to_string())
+                    .unwrap_or("-".to_string()),
                 rule_match.context
             );
         }
 
         // The expected behavior: "كِتَابًا" has tanwin fatha (ً) on ba, followed by kaaf in next word
         // This should trigger Ikhfaa Haqiqi since Kaaf is one of the 15 Ikhfaa letters
-        assert!(has_rule(&matches, TajweedRuleType::IkhfaaHaqiqi),
-                "Expected IkhfaaHaqiqi rule for tanwin followed by Kaaf");
+        assert!(
+            has_rule(&matches, TajweedRuleType::IkhfaaHaqiqi),
+            "Expected IkhfaaHaqiqi rule for tanwin followed by Kaaf"
+        );
     }
 }

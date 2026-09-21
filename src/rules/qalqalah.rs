@@ -77,5 +77,8 @@ fn check_qalqalah_type(
 }
 
 fn is_verse_end(chars: &[char], idx: usize) -> bool {
-    idx + 1 == chars.len() || chars[idx + 1..].iter().all(|&c| is_tajweed_ignorable(c) || is_punctuation(c))
+    idx + 1 == chars.len()
+        || chars[idx + 1..]
+            .iter()
+            .all(|&c| is_tajweed_ignorable(c) || is_punctuation(c))
 }
