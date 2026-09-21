@@ -1,6 +1,7 @@
 //! Comprehensive tests for all Tajweed rules
 
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod comprehensive_tests {
     use crate::{RecitationStyle, TajweedProcessor, TajweedRuleType};
 
@@ -167,7 +168,7 @@ mod comprehensive_tests {
         let processor = TajweedProcessor::new(RecitationStyle::Hafs);
 
         // Test all waqf signs
-        let verse = format!("أ\u{06D6}ب\u{06D7}ت\u{06DA}ث\u{06DB}ج\u{06D5}ح\u{06D9}");
+        let verse = "أ\u{06D6}ب\u{06D7}ت\u{06DA}ث\u{06DB}ج\u{06D5}ح\u{06D9}".to_string();
         let matches = processor.process_verse(&verse);
 
         assert!(has_rule(&matches, TajweedRuleType::WaslAwla));
@@ -194,7 +195,7 @@ mod comprehensive_tests {
 
         // Idgham Naqis - incomplete assimilation (Warsh specific)
         let warsh_matches = warsh_processor.process_verse("مِنْ يَجْرِي");
-        let hafs_matches = hafs_processor.process_verse("مِنْ يَجْرِي");
+        let _hafs_matches = hafs_processor.process_verse("مِنْ يَجْرِي");
 
         // In Warsh, this might produce IdghamNaqis, but in Hafs it won't
         // Both should produce some form of Idgham though

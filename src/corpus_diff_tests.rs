@@ -9,6 +9,7 @@
 //! U+0671, the silent Alif U+06DF, unmarked Meem Sakinah) is preserved.
 
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod corpus_diff_tests {
     use crate::types::{RecitationStyle, RuleMatch, TajweedRuleType};
     use crate::TajweedProcessor;

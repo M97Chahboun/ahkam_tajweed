@@ -23,11 +23,12 @@ pub enum TarqeeqScope {
     WarshSpecific,
 }
 
-/// Detect Tafkhim Ra (تفخيم الراء)
+/// Detect Tafkhim Ra (تفخيم الراء).
+///
 /// Ra is emphasized (heavy) when:
+///
 /// 1. It has a fatha or damma
 /// 2. It has a sukoon and the letter before has fatha or damma
-/// Detect Tafkhim Ra (تفخيم الراء)
 pub fn detect_tafkhim_ra(verse_chars: &[char], current_index: usize) -> Option<TajweedRuleType> {
     let index = VerseIndex::new(verse_chars);
     detect_tafkhim_ra_indexed(verse_chars, &index, current_index)
@@ -346,8 +347,8 @@ fn detect_tafkhim_lafuljalala_indexed(
         // No explicit second lam - verify shadda was present on first lam
         let mut found_shadda = false;
         let first_lam_pos = current_index + 1;
-        for i in (first_lam_pos + 1)..check_idx {
-            if verse_chars[i] == '\u{0651}' {
+        for ch in verse_chars.iter().take(check_idx).skip(first_lam_pos + 1) {
+            if *ch == '\u{0651}' {
                 found_shadda = true;
                 break;
             }

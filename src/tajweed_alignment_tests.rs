@@ -41,6 +41,7 @@
 //! | Ra Tarqeeq (Kasra) | quranica.com, abouttajweed.com | ✅ |
 
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod tajweed_alignment_tests {
     use crate::{RecitationStyle, RuleMatch, TajweedProcessor, TajweedRuleType};
 
@@ -1259,7 +1260,7 @@ mod tajweed_alignment_tests {
     #[test]
     fn test_waqf_lazim_u06d5() {
         // U+06D5 (ۖ) = Waqf Lazim — must stop here
-        let verse = format!("كل\u{06D5}");
+        let verse = "كل\u{06D5}".to_string();
         let m = hafs().process_verse(&verse);
         assert!(
             has_rule(&m, TajweedRuleType::WaqfLazim),
@@ -1270,7 +1271,7 @@ mod tajweed_alignment_tests {
     #[test]
     fn test_wasl_awla_u06d6() {
         // U+06D6 (ۖ) = Wasl Awla (صلى) — continuing is preferred
-        let verse = format!("ك\u{06D6}");
+        let verse = "ك\u{06D6}".to_string();
         let m = hafs().process_verse(&verse);
         assert!(has_rule(&m, TajweedRuleType::WaslAwla), "WaslAwla: U+06D6");
     }
@@ -1278,7 +1279,7 @@ mod tajweed_alignment_tests {
     #[test]
     fn test_waqf_awla_u06d7() {
         // U+06D7 (ۗ) = Waqf Awla (قلى) — stopping is preferred
-        let verse = format!("ك\u{06D7}");
+        let verse = "ك\u{06D7}".to_string();
         let m = hafs().process_verse(&verse);
         assert!(has_rule(&m, TajweedRuleType::WaqfAwla), "WaqfAwla: U+06D7");
     }
@@ -1286,7 +1287,7 @@ mod tajweed_alignment_tests {
     #[test]
     fn test_waqf_jaiz_u06da() {
         // U+06DA (ۚ) = Waqf Jaiz (ج) — either stopping or continuing is OK
-        let verse = format!("ك\u{06DA}");
+        let verse = "ك\u{06DA}".to_string();
         let m = hafs().process_verse(&verse);
         assert!(has_rule(&m, TajweedRuleType::WaqfJaiz), "WaqfJaiz: U+06DA");
     }
@@ -1294,7 +1295,7 @@ mod tajweed_alignment_tests {
     #[test]
     fn test_waqf_muanaqah_u06db() {
         // U+06DB (ۛ) = Waqf Muanaqah (∴) — stop at one of the two marked places
-        let verse = format!("ك\u{06DB}");
+        let verse = "ك\u{06DB}".to_string();
         let m = hafs().process_verse(&verse);
         assert!(
             has_rule(&m, TajweedRuleType::WaqfMuanaqah),
@@ -1305,7 +1306,7 @@ mod tajweed_alignment_tests {
     #[test]
     fn test_waqf_mamnou_u06d9() {
         // U+06D9 (ۙ) = Waqf Mamnou (لا) — do NOT stop here
-        let verse = format!("كل\u{06D9}");
+        let verse = "كل\u{06D9}".to_string();
         let m = hafs().process_verse(&verse);
         assert!(
             has_rule(&m, TajweedRuleType::WaqfMamnou),
@@ -1316,7 +1317,7 @@ mod tajweed_alignment_tests {
     #[test]
     fn test_sakt_u06dc() {
         // U+06DC (ۜ) = Sakt (س) — brief pause without breathing
-        let verse = format!("ك\u{06DC}");
+        let verse = "ك\u{06DC}".to_string();
         let m = hafs().process_verse(&verse);
         assert!(has_rule(&m, TajweedRuleType::Sakt), "Sakt: U+06DC");
     }
@@ -1487,10 +1488,10 @@ mod tajweed_alignment_tests {
         );
 
         // Exception 2: Foreign names (إِبْرَاهِيم)
-        let m_ibrahim = warsh().process_verse("إِبۡرَ ٰ⁠هِـۧمَ");
+        let m_ibrahim = warsh().process_verse("إِبۡرَ\u{200A}ٰ\u{2060}هِـۧمَ");
         assert!(
             has_rule(&m_ibrahim, TajweedRuleType::TafkhimRa),
-            "Tafkhim Ra in Warsh for [إِبۡرَ ٰ⁠هِـۧمَ]"
+            "Tafkhim Ra in Warsh for [إِبۡرَ\u{200A}ٰ\u{2060}هِـۧمَ]"
         );
     }
 

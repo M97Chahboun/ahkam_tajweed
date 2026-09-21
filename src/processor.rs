@@ -623,7 +623,7 @@ mod tests {
     fn test_explicit_waqf_lazim() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
         // U+06D5 is the Waqf Lazim (مـ) sign
-        let verse = format!("كل\u{06D5}");
+        let verse = "كل\u{06D5}".to_string();
         assert!(has_rule(
             &p.process_verse(&verse),
             TajweedRuleType::WaqfLazim
@@ -634,7 +634,7 @@ mod tests {
     #[test]
     fn test_explicit_waqf_mamnou() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
-        let verse = format!("كل\u{06D9}");
+        let verse = "كل\u{06D9}".to_string();
         assert!(has_rule(
             &p.process_verse(&verse),
             TajweedRuleType::WaqfMamnou
@@ -1214,7 +1214,7 @@ mod tests {
     #[test]
     fn test_all_waqf_wasl_signs() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
-        let verse = format!("أ\u{06D6}ب\u{06D7}ت\u{06DA}ث\u{06DB}ج\u{06D5}ح\u{06D9}");
+        let verse = "أ\u{06D6}ب\u{06D7}ت\u{06DA}ث\u{06DB}ج\u{06D5}ح\u{06D9}".to_string();
         let m = p.process_verse(&verse);
         assert!(has_rule(&m, TajweedRuleType::WaslAwla));
         assert!(has_rule(&m, TajweedRuleType::WaqfAwla));
@@ -1453,7 +1453,7 @@ mod tests {
     fn test_waqf_lazim_index() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
         // "اب\u{06D5}" – WaqfLazim at index 2
-        let verse = format!("اب\u{06D5}");
+        let verse = "اب\u{06D5}".to_string();
         let m = p.process_verse(&verse);
         let wl = m
             .iter()
@@ -1467,7 +1467,7 @@ mod tests {
     #[test]
     fn test_waqf_mamnou_index() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
-        let verse = format!("اب\u{06D9}");
+        let verse = "اب\u{06D9}".to_string();
         let m = p.process_verse(&verse);
         let wm = m
             .iter()
@@ -1503,7 +1503,7 @@ mod tests {
     #[test]
     fn test_iqlab_plus_waqf_awla() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
-        let verse = format!("مِنْ بَعْدِ\u{06D7}");
+        let verse = "مِنْ بَعْدِ\u{06D7}".to_string();
         let m = p.process_verse(&verse);
         assert!(has_rule(&m, TajweedRuleType::Iqlab));
         assert!(has_rule(&m, TajweedRuleType::WaqfAwla));
@@ -1513,7 +1513,7 @@ mod tests {
     #[test]
     fn test_multi_family_integration() {
         let p = TajweedProcessor::new(RecitationStyle::Hafs);
-        let verse = format!("الرَّحْمَنِ كَانَ\u{06DC}");
+        let verse = "الرَّحْمَنِ كَانَ\u{06DC}".to_string();
         let m = p.process_verse(&verse);
 
         // IdghamShamsi or IzharQamari (Lam family)

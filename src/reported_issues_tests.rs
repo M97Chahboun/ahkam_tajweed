@@ -22,6 +22,7 @@
 //! detection has to recognise both that spelling and the ordinary one.
 
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod reported_issues_tests {
     use crate::types::{RecitationStyle, RuleMatch, TajweedRule, TajweedRuleType};
     use crate::TajweedProcessor;

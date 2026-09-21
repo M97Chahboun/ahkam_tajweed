@@ -183,12 +183,13 @@ fn is_idgham_product(verse_chars: &[char], index: &VerseIndex, idx: usize) -> bo
     if !prev_is_sakin {
         return false;
     }
-    match (prev_char, verse_chars[idx]) {
-        ('ن', 'ن') | ('ن', 'م') | ('م', 'م') => true,
-        _ => false,
-    }
+    matches!(
+        (prev_char, verse_chars[idx]),
+        ('ن', 'ن') | ('ن', 'م') | ('م', 'م')
+    )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn check_noon_mim(
     verse_chars: &[char],
     index: &VerseIndex,
@@ -258,6 +259,7 @@ fn check_noon_mim(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn check_tanwin(
     verse_chars: &[char],
     index: &VerseIndex,

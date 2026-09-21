@@ -383,12 +383,9 @@ pub fn is_word_boundary(c: char) -> bool {
 /// Check if there is a word boundary between two indices (exclusive)
 pub fn has_word_boundary_between(verse_chars: &[char], start: usize, end: usize) -> bool {
     let end = end.min(verse_chars.len());
-    for i in start..end {
-        if is_word_boundary(verse_chars[i]) {
-            return true;
-        }
-    }
-    false
+    verse_chars[start..end]
+        .iter()
+        .any(|&c| is_word_boundary(c))
 }
 
 /// Find the next Arabic letter at or after `start_idx`.
